@@ -1,0 +1,1 @@
+cmd_/home/pi/linux-device-driver/hello_world/hello_world.ko := ld -r  -EL  --build-id=sha1  -T scripts/module.lds -o /home/pi/linux-device-driver/hello_world/hello_world.ko /home/pi/linux-device-driver/hello_world/hello_world.o /home/pi/linux-device-driver/hello_world/hello_world.mod.o;  true
