@@ -1,1 +1,0 @@
-cmd_/home/pi/linux-device-driver/hello_world/modules.order := {   echo /home/pi/linux-device-driver/hello_world/hello_world.ko; :; } | awk '!x[$$0]++' - > /home/pi/linux-device-driver/hello_world/modules.order
