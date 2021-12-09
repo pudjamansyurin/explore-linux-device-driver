@@ -1,0 +1,1 @@
+cmd_/home/pi/linux-device-driver/03_device_file/device_file.ko := ld -r  -EL  --build-id=sha1  -T scripts/module.lds -o /home/pi/linux-device-driver/03_device_file/device_file.ko /home/pi/linux-device-driver/03_device_file/device_file.o /home/pi/linux-device-driver/03_device_file/device_file.mod.o;  true

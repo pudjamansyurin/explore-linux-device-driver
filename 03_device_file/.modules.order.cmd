@@ -1,0 +1,1 @@
+cmd_/home/pi/linux-device-driver/03_device_file/modules.order := {   echo /home/pi/linux-device-driver/03_device_file/device_file.ko; :; } | awk '!x[$$0]++' - > /home/pi/linux-device-driver/03_device_file/modules.order

@@ -1,0 +1,1 @@
+cmd_/home/pi/linux-device-driver/02_major_minor/major_minor.ko := ld -r  -EL  --build-id=sha1  -T scripts/module.lds -o /home/pi/linux-device-driver/02_major_minor/major_minor.ko /home/pi/linux-device-driver/02_major_minor/major_minor.o /home/pi/linux-device-driver/02_major_minor/major_minor.mod.o;  true
