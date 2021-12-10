@@ -125,6 +125,7 @@ r_class:
 
 static void __exit alman_exit(void)
 {
+	kfree(alman_buf);
 	device_destroy(alman_class, alman_dev);
 	class_destroy(alman_class);
 	cdev_del(&alman_cdev);
