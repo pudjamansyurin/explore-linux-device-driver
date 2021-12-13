@@ -3,34 +3,33 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
-#include <linux/proc_fs.h>
+#include <linux/kobject.h>
+#include <linux/sysfs.h>
 
 /* Private macros */        
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
-#define BUF_SIZE 50
 
-/* Function prototypes */
-static int 	__init alman_init(void); 
-static void 	__exit alman_exit(void);
-/* Driver functions */
+/* Device file: Function prototypes */
 static int	alman_open(struct inode *inode, struct file *file);
 static int	alman_release(struct inode *inode, struct file *file);
 static ssize_t	alman_read(struct file *file, char __user *buf, size_t len, loff_t *off);
 static ssize_t	alman_write(struct file *file, const char *buf, size_t len, loff_t *off);
-/* Procfs functions */
-static int	proc_open(struct inode *inode, struct file *file);
-static int	proc_release(struct inode *inode, struct file *file);
-static ssize_t	proc_read(struct file *file, char __user *buf, size_t len, loff_t *off);
-static ssize_t	proc_write(struct file *file, const char *buf, size_t len, loff_t *off);
+/* Sysfs: Function prototypes */
+static ssize_t 	sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf);
+static ssize_t 	sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count);
+/* Driver: Function prototypes */
+static int 	__init alman_init(void); 
+static void 	__exit alman_exit(void);
 
 /* Private variables */
 static dev_t alman_dev = 0;
 static struct class *alman_class;
 static struct cdev alman_cdev;
 
-static struct proc_dir_entry *parent;
-static char alman_buf[BUF_SIZE] = "Al-Manshurin Informatika\n";
+static int alman_value = 0;
+static struct kobject *alman_kobj_ref;
+static struct kobj_attribute alman_attr = __ATTR(alman_value, 0660, sysfs_show, sysfs_store);
 
 static struct file_operations fops = {
 	.owner 		= THIS_MODULE,
@@ -40,44 +39,22 @@ static struct file_operations fops = {
 	.release	= alman_release,
 };
 
-static struct proc_ops pops = {
-	.proc_open = proc_open,
-	.proc_read = proc_read,
-	.proc_write = proc_write,
-	.proc_release = proc_release,
-};
-
 /* Function implementations */
-/* Procfs functions */
-static int proc_open(struct inode *inode, struct file *file) 
+/* Sysfs: Function implementations */
+static ssize_t 	sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
-	pr_info(DEV_INFO "Procfs open() called\n");
-	return 0;
+	pr_info(DEV_INFO "Sysfs show()\n");
+	return sprintf(buf, "%d", alman_value);
 }
 
-static int proc_release(struct inode *inode, struct file *file)
+static ssize_t 	sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	pr_info(DEV_INFO "Procfs release() called\n");
-	return 0;
+	pr_info(DEV_INFO "Sysfs store()\n");
+	sscanf(buf, "%d", &alman_value);
+	return count;
 }
 
-static ssize_t proc_read(struct file *filep, char __user *buf, size_t len, loff_t *off)
-{
-	pr_info(DEV_INFO "Procfs read() called\n");
-	if (copy_to_user(buf, alman_buf, BUF_SIZE)) 
-		pr_err("Data read Error\n");
-	return len;
-}
-
-static ssize_t proc_write(struct file *filep, const char *buf, size_t len, loff_t *off)
-{
-	pr_info(DEV_INFO "Procfs write() called\n");
-	if (copy_from_user(alman_buf, buf, len))
-		pr_err(DEV_INFO "Data write Error\n");
-	return len;
-}
-
-/* Driver functions */
+/* Device file: Function implementations */
 static int alman_open(struct inode *inode, struct file *file) 
 {
 	pr_info(DEV_INFO "Driver open() called\n");
@@ -102,9 +79,10 @@ static ssize_t alman_write(struct file *filep, const char *buf, size_t len, loff
 	return len;
 }
 
+/* Driver: Function implementations */
 static int __init alman_init(void) 
 {
-	/* Allocate major number */
+	/* Chardev: Allocate major number */
 	if (alloc_chrdev_region(&alman_dev, 0, 1, MOD_NAME "_dev") < 0) 
 	{
 		pr_err(DEV_INFO "Can't allocate major number for device\n");
@@ -112,17 +90,17 @@ static int __init alman_init(void)
 	}
 	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alman_dev), MINOR(alman_dev));
 	
-	/* Create struct chardev */
+	/* Chardev: Create struct chardev */
 	cdev_init(&alman_cdev, &fops);
 
-	/* Add chardev to kernel */
+	/* Chardev: Add chardev to kernel */
 	if (cdev_add(&alman_cdev, alman_dev, 1) < 0)
 	{
 		pr_err(DEV_INFO "Can't add chardev to the system\n");
-		return -1;
+		goto r_cdev;
 	}
 
-	/* Create struct class */
+	/* Device file: Create struct class */
 	alman_class = class_create(THIS_MODULE, MOD_NAME "_class");
 	if (alman_class == NULL)
 	{
@@ -130,39 +108,41 @@ static int __init alman_init(void)
 		goto r_class;
 	}
 
-	/* Create the device */
+	/* Device file: Create the device */
 	if (device_create(alman_class, NULL, alman_dev, NULL, MOD_NAME "_device") == NULL)
 	{
 		pr_err(DEV_INFO "Can't create the device\n");
 		goto r_device;
 	}
 
-	/* Create proc directory */
-	parent = proc_mkdir(MOD_NAME, NULL);
-	if (parent == NULL)
-	{
-		pr_info(DEV_INFO "Can't create procfs entry\n");
-		goto r_device;
-	}
+	/* Sysfs: create dir in /sys/kernel/ */
+	alman_kobj_ref = kobject_create_and_add(MOD_NAME "_sysfs", kernel_kobj); 
 
-	/* Create procfs file */
-	proc_create(MOD_NAME "_proc", 0666, parent, &pops);
+	/* Sysfs: create the file */
+	if (sysfs_create_file(alman_kobj_ref, &alman_attr.attr))
+	{
+		pr_err(DEV_INFO "Can't create sysfs file\n");
+		goto r_sysfs;
+	}
 
 	printk(DEV_INFO "Driver inserted\n");
 	return 0;
 
+r_sysfs:
+	kobject_put(alman_kobj_ref);
 r_device:
 	class_destroy(alman_class);
 r_class:
+	cdev_del(&alman_cdev);
+r_cdev:
 	unregister_chrdev_region(alman_dev, 1);
 	return -1;
-
 }
 
 static void __exit alman_exit(void)
 {
-	remove_proc_entry(MOD_NAME "_proc", parent); 
-	proc_remove(parent); 
+	kobject_put(alman_kobj_ref);
+	sysfs_remove_file(kernel_kobj, &alman_attr.attr);
 
 	device_destroy(alman_class, alman_dev);
 	class_destroy(alman_class);
