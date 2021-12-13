@@ -1,4 +1,4 @@
-obj-m += device_file.o 
+obj-m += alman.o 
 
 KDIR = /lib/modules/$(shell uname -r)/build
 CDIR = $(shell pwd)

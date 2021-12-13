@@ -1,8 +1,5 @@
-//#include <linux/kernel.h>
-//#include <linux/init.h>
 #include <linux/module.h>
 
-//URL: https://embetronicx.com/tutorials/linux/device-drivers/linux-device-driver-tutorial-part-3-passing-arguments-to-device-driver/
 
 #define MOD_NAME "arg parser: "
 

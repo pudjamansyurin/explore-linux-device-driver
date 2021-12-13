@@ -1,4 +1,4 @@
-obj-m += major_minor.o
+obj-m += alman.o
 
 KDIR = /lib/modules/$(shell uname -r)/build
 CDIR = $(shell pwd)

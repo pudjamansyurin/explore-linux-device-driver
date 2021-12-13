@@ -1,5 +1,3 @@
-//#include <linux/kernel.h>
-//#include <linux/init.h>
 #include <linux/module.h>
 
 static int __init hello_world_init(void) 
