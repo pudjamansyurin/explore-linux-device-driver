@@ -6,14 +6,11 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 //#include <linux/slab.h>
-#include <linux/ioctl.h>
 #include <linux/proc_fs.h>
 
 /* Private macros */        
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
-#define WR_VALUE _IOW('a', 'a', int32_t*)
-#define RD_VALUE _IOR('a', 'b', int32_t*)
 #define BUF_SIZE 50
 
 /* Function prototypes */
@@ -24,7 +21,6 @@ static int	alman_open(struct inode *inode, struct file *file);
 static int	alman_release(struct inode *inode, struct file *file);
 static ssize_t	alman_read(struct file *file, char __user *buf, size_t len, loff_t *off);
 static ssize_t	alman_write(struct file *file, const char *buf, size_t len, loff_t *off);
-static long	alman_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 /* Procfs functions */
 static int	proc_open(struct inode *inode, struct file *file);
 static int	proc_release(struct inode *inode, struct file *file);
@@ -35,7 +31,6 @@ static ssize_t	proc_write(struct file *file, const char *buf, size_t len, loff_t
 static dev_t alman_dev = 0;
 static struct class *alman_class;
 static struct cdev alman_cdev;
-static int32_t alman_value;
 
 static struct proc_dir_entry *parent;
 static char alman_buf[BUF_SIZE] = "Al-Manshurin Informatika\n";
@@ -46,7 +41,6 @@ static struct file_operations fops = {
 	.write 		= alman_write,
 	.open 		= alman_open,
 	.release	= alman_release,
-	.unlocked_ioctl	= alman_ioctl,
 };
 
 static struct proc_ops pops = {
@@ -109,25 +103,6 @@ static ssize_t alman_write(struct file *filep, const char *buf, size_t len, loff
 {
 	pr_info(DEV_INFO "Driver write() called\n");
 	return len;
-}
-
-static long alman_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	switch(cmd) 
-	{
-		case WR_VALUE:
-			if (copy_from_user(&alman_value, (int32_t*) arg, sizeof(alman_value)))
-				pr_err("Data write Error\n");
-			pr_info("Value = %d\n", alman_value);
-			break;
-		case RD_VALUE:
-			if (copy_to_user((int32_t*) arg, &alman_value, sizeof(alman_value))) 
-				pr_err("Data read Error\n");
-			break;
-		default:
-			break;
-	}
-	return 0;
 }
 
 static int __init alman_init(void) 
