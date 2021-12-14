@@ -127,7 +127,7 @@ static int __init alman_init(void)
 	if (wait_thread == NULL) 
 	{
 		pr_info(DEV_INFO "Can't create thread\n");
-		goto r_device;
+		goto r_thread;
 	}
 	
 	/* Kernel thread: Wakeup */
@@ -137,6 +137,8 @@ static int __init alman_init(void)
 	printk(DEV_INFO "Driver inserted\n");
 	return 0;
 
+r_thread:
+	device_destroy(alman_class, alman_dev);
 r_device:
 	class_destroy(alman_class);
 r_class:
