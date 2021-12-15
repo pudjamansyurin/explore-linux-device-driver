@@ -4,7 +4,7 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
-#include <linux/wait.h>
+#include <linux/delay.h>
 
 /* Private macros */        
 #define MOD_NAME "alman"
@@ -22,11 +22,9 @@ static int 	__init alman_init(void);
 static void 	__exit alman_exit(void);
 
 /* Private variables */
-static dev_t alman_dev = 0;
+static dev_t alman_devno = 0;
 static struct class *alman_class;
 static struct cdev alman_cdev;
-
-static wait_queue_head_t alman_waitqueue;
 
 static struct work_struct alman_work;
 static struct workqueue_struct *alman_workqueue;
@@ -45,7 +43,7 @@ static void workqueue_fn(struct work_struct *work)
 {
 	pr_info(DEV_INFO "Workqueue is called\n");
 	pr_info(DEV_INFO "Workqueue process heavy job\n");
-	wait_event_timeout(alman_waitqueue, 1 == 0, 1 * HZ);
+	msleep(5000);
 	pr_info(DEV_INFO "Workqueue done\n");
 }
 
@@ -80,18 +78,18 @@ static ssize_t alman_write(struct file *filep, const char *buf, size_t len, loff
 static int __init alman_init(void) 
 {
 	/* Chardev: Allocate major number */
-	if (alloc_chrdev_region(&alman_dev, 0, 1, MOD_NAME "_dev") < 0) 
+	if (alloc_chrdev_region(&alman_devno, 0, 1, MOD_NAME "_dev") < 0) 
 	{
 		pr_err(DEV_INFO "Can't allocate major number for device\n");
 		return -1;
 	}
-	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alman_dev), MINOR(alman_dev));
+	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alman_devno), MINOR(alman_devno));
 	
 	/* Chardev: Create struct chardev */
 	cdev_init(&alman_cdev, &fops);
 
 	/* Chardev: Add chardev to kernel */
-	if (cdev_add(&alman_cdev, alman_dev, 1) < 0)
+	if (cdev_add(&alman_cdev, alman_devno, 1) < 0)
 	{
 		pr_err(DEV_INFO "Can't add chardev to the system\n");
 		goto r_cdev;
@@ -106,15 +104,12 @@ static int __init alman_init(void)
 	}
 
 	/* Device file: Create the device */
-	if (device_create(alman_class, NULL, alman_dev, NULL, MOD_NAME "_device") == NULL)
+	if (device_create(alman_class, NULL, alman_devno, NULL, MOD_NAME "_device") == NULL)
 	{
 		pr_err(DEV_INFO "Can't create the device\n");
 		goto r_device;
 	}
 
-        /* Wait queue: Initialization */
-        init_waitqueue_head(&alman_waitqueue);
-	
 	/* Work queue: Initialization */
 	INIT_WORK(&alman_work, workqueue_fn);
 	alman_workqueue = create_workqueue(MOD_NAME "_workqueue");
@@ -127,7 +122,8 @@ r_device:
 r_class:
 	cdev_del(&alman_cdev);
 r_cdev:
-	unregister_chrdev_region(alman_dev, 1);
+	unregister_chrdev_region(alman_devno, 1);
+
 	return -1;
 }
 
@@ -135,10 +131,10 @@ static void __exit alman_exit(void)
 {
 	destroy_workqueue(alman_workqueue);
 
-	device_destroy(alman_class, alman_dev);
+	device_destroy(alman_class, alman_devno);
 	class_destroy(alman_class);
 	cdev_del(&alman_cdev);
-	unregister_chrdev_region(alman_dev, 1);
+	unregister_chrdev_region(alman_devno, 1);
 	printk(DEV_INFO "Driver removed\n");
 }
 
