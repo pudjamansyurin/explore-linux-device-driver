@@ -3,33 +3,26 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
-#include <linux/kobject.h>
-#include <linux/sysfs.h>
+#include <linux/interrupt.h>
+#include <linux/slab.h>
 
 /* Private macros */        
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
 /* Device file: Function prototypes */
-static int	    alman_open(struct inode *inode, struct file *file);
-static int	    alman_release(struct inode *inode, struct file *file);
+static int	alman_open(struct inode *inode, struct file *file);
+static int	alman_release(struct inode *inode, struct file *file);
 static ssize_t	alman_read(struct file *file, char __user *buf, size_t len, loff_t *off);
 static ssize_t	alman_write(struct file *file, const char __user *buf, size_t len, loff_t *off);
-/* Sysfs: Function prototypes */
-static ssize_t 	sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf);
-static ssize_t 	sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count);
 /* Driver: Function prototypes */
-static int 	    __init alman_init(void); 
-static void 	  __exit alman_exit(void);
+static int 	__init alman_init(void); 
+static void 	__exit alman_exit(void);
 
 /* Private variables */
 static dev_t alman_devnum = 0;
 static struct class *alman_class;
 static struct cdev alman_cdev;
-
-static int alman_value = 0;
-static struct kobject *alman_kobj_ref;
-static struct kobj_attribute alman_kobj_attr = __ATTR(alman_value, 0660, sysfs_show, sysfs_store);
 
 static struct file_operations fops = {
 	.owner 		= THIS_MODULE,
@@ -39,19 +32,14 @@ static struct file_operations fops = {
 	.release	= alman_release,
 };
 
-/* Function implementations */
-/* Sysfs: Function implementations */
-static ssize_t 	sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
-{
-	pr_info(DEV_INFO "Sysfs show()\n");
-	return sprintf(buf, "%d", alman_value);
-}
+struct tasklet_struct *alman_tasklet = NULL;
 
-static ssize_t 	sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+/* Function implementations */
+/* Thread: Function */
+static void bottom_func(unsigned long arg)
 {
-	pr_info(DEV_INFO "Sysfs store()\n");
-	sscanf(buf, "%d", &alman_value);
-	return count;
+	pr_info(DEV_INFO "Tasklet is executing in atomic context\n");
+	pr_info(DEV_INFO "Tasklet arg = %ld\n", arg);	
 }
 
 /* Device file: Function implementations */
@@ -70,6 +58,8 @@ static int alman_release(struct inode *inode, struct file *file)
 static ssize_t alman_read(struct file *filep, char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver read() called\n");
+	tasklet_schedule(alman_tasklet);
+	pr_info(DEV_INFO "Driver read() exited\n");
 	return 0;
 }
 
@@ -114,21 +104,20 @@ static int __init alman_init(void)
 		goto r_device;
 	}
 
-	/* Sysfs: create dir in /sys/kernel/ */
-	alman_kobj_ref = kobject_create_and_add(MOD_NAME "_sysfs", kernel_kobj); 
-
-	/* Sysfs: create the file */
-	if (sysfs_create_file(alman_kobj_ref, &alman_kobj_attr.attr))
+	/* Tasklet (atomic context) */
+	if ((alman_tasklet = kmalloc(sizeof(struct tasklet_struct), GFP_KERNEL)) == NULL) 
 	{
-		pr_err(DEV_INFO "Can't create sysfs file\n");
-		goto r_sysfs;
+		pr_err(DEV_INFO "Can't allocate tasklet from memory\n");
+		goto r_tasklet;
 	}
+
+	tasklet_init(alman_tasklet, bottom_func, 313);
 
 	printk(DEV_INFO "Driver inserted\n");
 	return 0;
 
-r_sysfs:
-	kobject_put(alman_kobj_ref);
+r_tasklet:
+	device_destroy(alman_class, alman_devnum);
 r_device:
 	class_destroy(alman_class);
 r_class:
@@ -141,8 +130,8 @@ r_cdev:
 
 static void __exit alman_exit(void)
 {
-	kobject_put(alman_kobj_ref);
-	sysfs_remove_file(kernel_kobj, &alman_kobj_attr.attr);
+	tasklet_kill(alman_tasklet);
+	kfree(alman_tasklet);
 
 	device_destroy(alman_class, alman_devnum);
 	class_destroy(alman_class);

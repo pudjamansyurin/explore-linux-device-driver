@@ -11,13 +11,13 @@
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
 /* Device file: Function prototypes */
-static int	alman_open(struct inode *inode, struct file *file);
-static int	alman_release(struct inode *inode, struct file *file);
+static int	    alman_open(struct inode *inode, struct file *file);
+static int	    alman_release(struct inode *inode, struct file *file);
 static ssize_t	alman_read(struct file *file, char __user *buf, size_t len, loff_t *off);
 static ssize_t	alman_write(struct file *file, const char __user *buf, size_t len, loff_t *off);
 /* Driver: Function prototypes */
-static int 	__init alman_init(void); 
-static void 	__exit alman_exit(void);
+static int 	    __init alman_init(void); 
+static void 	  __exit alman_exit(void);
 
 /* Private variables */
 static dev_t alman_devnum = 0;

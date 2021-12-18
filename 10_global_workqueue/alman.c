@@ -4,6 +4,7 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
+#include <linux/delay.h>
 
 /* Private macros */        
 #define MOD_NAME "alman"
@@ -41,6 +42,8 @@ static void workqueue_fn(struct work_struct *work)
 {
 	pr_info(DEV_INFO "Workqueue is called\n");
 	pr_info(DEV_INFO "Workqueue process heavy job\n");
+  msleep(5000);
+  pr_info(DEV_INFO "Workqueue is done\n");
 }
 
 /* Device file: Function implementations */
