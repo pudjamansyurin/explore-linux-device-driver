@@ -14,7 +14,7 @@
 static int	alman_open(struct inode *inode, struct file *file);
 static int	alman_release(struct inode *inode, struct file *file);
 static ssize_t	alman_read(struct file *file, char __user *buf, size_t len, loff_t *off);
-static ssize_t	alman_write(struct file *file, const char *buf, size_t len, loff_t *off);
+static ssize_t	alman_write(struct file *file, const char __user *buf, size_t len, loff_t *off);
 /* Sysfs: Function prototypes */
 static ssize_t 	sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf);
 static ssize_t 	sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count);
@@ -23,13 +23,13 @@ static int 	__init alman_init(void);
 static void 	__exit alman_exit(void);
 
 /* Private variables */
-static dev_t alman_dev = 0;
+static dev_t alman_devnum = 0;
 static struct class *alman_class;
 static struct cdev alman_cdev;
 
 static int alman_value = 0;
 static struct kobject *alman_kobj_ref;
-static struct kobj_attribute alman_attr = __ATTR(alman_value, 0660, sysfs_show, sysfs_store);
+static struct kobj_attribute alman_kobj_attr = __ATTR(alman_value, 0660, sysfs_show, sysfs_store);
 
 static struct file_operations fops = {
 	.owner 		= THIS_MODULE,
@@ -73,7 +73,7 @@ static ssize_t alman_read(struct file *filep, char __user *buf, size_t len, loff
 	return 0;
 }
 
-static ssize_t alman_write(struct file *filep, const char *buf, size_t len, loff_t *off)
+static ssize_t alman_write(struct file *filep, const char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver write() called\n");
 	return len;
@@ -83,33 +83,32 @@ static ssize_t alman_write(struct file *filep, const char *buf, size_t len, loff
 static int __init alman_init(void) 
 {
 	/* Chardev: Allocate major number */
-	if (alloc_chrdev_region(&alman_dev, 0, 1, MOD_NAME "_dev") < 0) 
+	if (alloc_chrdev_region(&alman_devnum, 0, 1, MOD_NAME "_dev") < 0) 
 	{
 		pr_err(DEV_INFO "Can't allocate major number for device\n");
 		return -1;
 	}
-	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alman_dev), MINOR(alman_dev));
+	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alman_devnum), MINOR(alman_devnum));
 	
 	/* Chardev: Create struct chardev */
 	cdev_init(&alman_cdev, &fops);
 
 	/* Chardev: Add chardev to kernel */
-	if (cdev_add(&alman_cdev, alman_dev, 1) < 0)
+	if (cdev_add(&alman_cdev, alman_devnum, 1) < 0)
 	{
 		pr_err(DEV_INFO "Can't add chardev to the system\n");
 		goto r_cdev;
 	}
 
 	/* Device file: Create struct class */
-	alman_class = class_create(THIS_MODULE, MOD_NAME "_class");
-	if (alman_class == NULL)
+	if ((alman_class = class_create(THIS_MODULE, MOD_NAME "_class")) == NULL)
 	{
 		pr_err(DEV_INFO "Can't create struct class for device\n");
 		goto r_class;
 	}
 
 	/* Device file: Create the device */
-	if (device_create(alman_class, NULL, alman_dev, NULL, MOD_NAME "_device") == NULL)
+	if (device_create(alman_class, NULL, alman_devnum, NULL, MOD_NAME "_device") == NULL)
 	{
 		pr_err(DEV_INFO "Can't create the device\n");
 		goto r_device;
@@ -119,7 +118,7 @@ static int __init alman_init(void)
 	alman_kobj_ref = kobject_create_and_add(MOD_NAME "_sysfs", kernel_kobj); 
 
 	/* Sysfs: create the file */
-	if (sysfs_create_file(alman_kobj_ref, &alman_attr.attr))
+	if (sysfs_create_file(alman_kobj_ref, &alman_kobj_attr.attr))
 	{
 		pr_err(DEV_INFO "Can't create sysfs file\n");
 		goto r_sysfs;
@@ -135,19 +134,20 @@ r_device:
 r_class:
 	cdev_del(&alman_cdev);
 r_cdev:
-	unregister_chrdev_region(alman_dev, 1);
+	unregister_chrdev_region(alman_devnum, 1);
+	
 	return -1;
 }
 
 static void __exit alman_exit(void)
 {
 	kobject_put(alman_kobj_ref);
-	sysfs_remove_file(kernel_kobj, &alman_attr.attr);
+	sysfs_remove_file(kernel_kobj, &alman_kobj_attr.attr);
 
-	device_destroy(alman_class, alman_dev);
+	device_destroy(alman_class, alman_devnum);
 	class_destroy(alman_class);
 	cdev_del(&alman_cdev);
-	unregister_chrdev_region(alman_dev, 1);
+	unregister_chrdev_region(alman_devnum, 1);
 	printk(DEV_INFO "Driver removed\n");
 }
 

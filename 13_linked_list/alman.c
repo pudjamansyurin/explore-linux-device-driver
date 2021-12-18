@@ -3,13 +3,22 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
-#include <linux/kthread.h>
+#include <linux/workqueue.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 /* Private macros */        
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
+/* Type prototypes */
+struct alman_list {
+	struct list_head list;	
+	int data;
+};
+
+/* Workqueue: Function prototypes */
+static void 	workqueue_fn(struct work_struct *work);
 /* Device file: Function prototypes */
 static int	alman_open(struct inode *inode, struct file *file);
 static int	alman_release(struct inode *inode, struct file *file);
@@ -24,7 +33,11 @@ static dev_t alman_devnum = 0;
 static struct class *alman_class;
 static struct cdev alman_cdev;
 
-static struct task_struct *wait_thread;
+static int alman_value;
+static LIST_HEAD(alman_node);
+
+static struct work_struct alman_work;
+static struct workqueue_struct *alman_workqueue;
 
 static struct file_operations fops = {
 	.owner 		= THIS_MODULE,
@@ -35,15 +48,23 @@ static struct file_operations fops = {
 };
 
 /* Function implementations */
-/* Thread: Function */
-static int wait_func(void *unused)
+/* Workqueue: Function implementations */
+static void workqueue_fn(struct work_struct *work)
 {
-	do {
-		pr_info(DEV_INFO "Thread is running\n");
-		msleep(1000);
-	} while(!kthread_should_stop()); 
+	struct alman_list *tmp = NULL;
 
-	return 0;
+	pr_info(DEV_INFO "Workqueue is called\n");
+	if ((tmp = kmalloc(sizeof(struct alman_list), GFP_KERNEL)) == NULL)
+	{
+		pr_err(DEV_INFO "Can't allocate memory\n");
+		return;
+	}
+
+	tmp->data = alman_value;
+	INIT_LIST_HEAD(&tmp->list);
+	list_add_tail(&tmp->list, &alman_node);
+	
+	pr_info(DEV_INFO "Workqueue done\n");
 }
 
 /* Device file: Function implementations */
@@ -61,20 +82,45 @@ static int alman_release(struct inode *inode, struct file *file)
 
 static ssize_t alman_read(struct file *filep, char __user *buf, size_t len, loff_t *off)
 {
+	struct alman_list *tmp;
+	int count = 0;
+
 	pr_info(DEV_INFO "Driver read() called\n");
+	list_for_each_entry(tmp, &alman_node, list) { 
+		pr_info(DEV_INFO "Node %d, Data %d\n", count++, tmp->data);	
+	}
+	pr_info(DEV_INFO "Driver read() exit\n");
 	return 0;
 }
 
 static ssize_t alman_write(struct file *filep, const char __user *buf, size_t len, loff_t *off)
 {
+  char *tmp_buf;
+
 	pr_info(DEV_INFO "Driver write() called\n");
+
+  if ((tmp_buf = kmalloc(len, GFP_KERNEL)) == NULL)
+  {
+    pr_err(DEV_INFO "Can't allocate memory\n");
+    return -ENOMEM;
+  }
+
+	if (copy_from_user(tmp_buf, buf, len)) 
+  {
+		pr_err(DEV_INFO "Can't copy from user\n");
+		return -ENOMEM;
+	}	
+
+	sscanf(tmp_buf, "%d", &alman_value);
+	pr_info(DEV_INFO "Got value = %d\n", alman_value);
+	queue_work(alman_workqueue, &alman_work);
 	return len;
 }
 
 /* Driver: Function implementations */
 static int __init alman_init(void) 
 {
-	/* Device Number: Allocate major number */
+	/* Chardev: Allocate major number */
 	if (alloc_chrdev_region(&alman_devnum, 0, 1, MOD_NAME "_dev") < 0) 
 	{
 		pr_err(DEV_INFO "Can't allocate major number for device\n");
@@ -106,18 +152,13 @@ static int __init alman_init(void)
 		goto r_device;
 	}
 
-	/* Kernel thread: Create & Wakeup */
-	if ((wait_thread = kthread_run(wait_func, NULL, "wait_thread")) == NULL)
-	{
-		pr_info(DEV_INFO "Can't create thread\n");
-		goto r_thread;
-	}
-	
+	/* Work queue: Initialization */
+	INIT_WORK(&alman_work, workqueue_fn);
+	alman_workqueue = create_workqueue(MOD_NAME "_workqueue");
+
 	printk(DEV_INFO "Driver inserted\n");
 	return 0;
 
-r_thread:
-	device_destroy(alman_class, alman_devnum);
 r_device:
 	class_destroy(alman_class);
 r_class:
@@ -130,7 +171,13 @@ r_cdev:
 
 static void __exit alman_exit(void)
 {
-	kthread_stop(wait_thread);
+	struct alman_list *cursor, *tmp;
+	list_for_each_entry_safe(cursor, tmp, &alman_node, list)
+	{
+		list_del(&cursor->list);
+		kfree(cursor);
+	}
+	destroy_workqueue(alman_workqueue);
 
 	device_destroy(alman_class, alman_devnum);
 	class_destroy(alman_class);

@@ -11,9 +11,10 @@
 #define BUF_SIZE 1024
 
 /* Private variables */
-static dev_t alman_dev = 0;
+static dev_t alman_devnum = 0;
 static struct class *alman_class;
 static struct cdev alman_cdev;
+
 static uint8_t *alman_buf;
 
 /* Function prototypes */
@@ -22,7 +23,7 @@ static void 	__exit alman_exit(void);
 static int	alman_open(struct inode *inode, struct file *file);
 static int	alman_release(struct inode *inode, struct file *file);
 static ssize_t	alman_read(struct file *filep, char __user *buf, size_t len, loff_t *off);
-static ssize_t	alman_write(struct file *filep, const char *buf, size_t len, loff_t *off);
+static ssize_t	alman_write(struct file *filep, const char __user *buf, size_t len, loff_t *off);
 
 static struct file_operations fops = {
 	.owner 		= THIS_MODULE,
@@ -51,17 +52,19 @@ static ssize_t alman_read(struct file *filep, char __user *buf, size_t len, loff
 	if (copy_to_user(buf, alman_buf, BUF_SIZE))
 	{
 		pr_err(DEV_INFO "Read error!\n");
+		return -ENOMEM;
 	}
 	pr_info(DEV_INFO "Read OK\n");
 	return BUF_SIZE;
 }
 
-static ssize_t alman_write(struct file *filep, const char *buf, size_t len, loff_t *off)
+static ssize_t alman_write(struct file *filep, const char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver write() called\n");
 	if (copy_from_user(alman_buf, buf, len))
 	{
 		pr_err(DEV_INFO "Write error!\n");
+		return -ENOMEM;
 	}
 	pr_info(DEV_INFO "Write OK\n");
 	return len;
@@ -70,41 +73,39 @@ static ssize_t alman_write(struct file *filep, const char *buf, size_t len, loff
 static int __init alman_init(void) 
 {
 	/* Allocate major number */
-	if (alloc_chrdev_region(&alman_dev, 0, 1, MOD_NAME "_dev") < 0) 
+	if (alloc_chrdev_region(&alman_devnum, 0, 1, MOD_NAME "_dev") < 0) 
 	{
 		pr_err(DEV_INFO "Can't allocate major number for device\n");
 		return -1;
 	}
-	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alman_dev), MINOR(alman_dev));
+	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alman_devnum), MINOR(alman_devnum));
 	
 	/* Create struct chardev */
 	cdev_init(&alman_cdev, &fops);
 
 	/* Add chardev to kernel */
-	if (cdev_add(&alman_cdev, alman_dev, 1) < 0)
+	if (cdev_add(&alman_cdev, alman_devnum, 1) < 0)
 	{
 		pr_err(DEV_INFO "Can't add chardev to the system\n");
 		return -1;
 	}
 
 	/* Create struct class */
-	alman_class = class_create(THIS_MODULE, MOD_NAME "_class");
-	if (alman_class == NULL)
+	if ((alman_class = class_create(THIS_MODULE, MOD_NAME "_class")) == NULL)
 	{
 		pr_err(DEV_INFO "Can't create struct class for device\n");
 		goto r_class;
 	}
 
 	/* Create the device */
-	if (device_create(alman_class, NULL, alman_dev, NULL, MOD_NAME "_device") == NULL)
+	if (device_create(alman_class, NULL, alman_devnum, NULL, MOD_NAME "_device") == NULL)
 	{
 		pr_err(DEV_INFO "Can't create the device\n");
 		goto r_device;
 	}
 
 	/* Allocate physical memory */
-	alman_buf = kmalloc(BUF_SIZE, GFP_KERNEL);
-	if (alman_buf == NULL)
+	if ((alman_buf = kmalloc(BUF_SIZE, GFP_KERNEL)) == NULL)
 	{
 		pr_err(DEV_INFO "Can't allocate memory in kernel\n");
 		goto r_device;
@@ -116,7 +117,7 @@ static int __init alman_init(void)
 r_device:
 	class_destroy(alman_class);
 r_class:
-	unregister_chrdev_region(alman_dev, 1);
+	unregister_chrdev_region(alman_devnum, 1);
 	return -1;
 
 }
@@ -124,10 +125,11 @@ r_class:
 static void __exit alman_exit(void)
 {
 	kfree(alman_buf);
-	device_destroy(alman_class, alman_dev);
+
+	device_destroy(alman_class, alman_devnum);
 	class_destroy(alman_class);
 	cdev_del(&alman_cdev);
-	unregister_chrdev_region(alman_dev, 1);
+	unregister_chrdev_region(alman_devnum, 1);
 	printk(DEV_INFO "Driver removed\n");
 }
 
