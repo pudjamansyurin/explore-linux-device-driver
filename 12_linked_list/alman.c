@@ -12,7 +12,7 @@
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
 /* Type prototypes */
-struct alman_list {
+struct alm_list {
 	struct list_head list;	
 	int data;
 };
@@ -20,80 +20,80 @@ struct alman_list {
 /* Workqueue: Function prototypes */
 static void 	workqueue_fn(struct work_struct *work);
 /* Device file: Function prototypes */
-static int	alman_open(struct inode *inode, struct file *file);
-static int	alman_release(struct inode *inode, struct file *file);
-static ssize_t	alman_read(struct file *file, char __user *buf, size_t len, loff_t *off);
-static ssize_t	alman_write(struct file *file, const char __user *buf, size_t len, loff_t *off);
+static int	alm_open(struct inode *inode, struct file *file);
+static int	alm_release(struct inode *inode, struct file *file);
+static ssize_t	alm_read(struct file *file, char __user *buf, size_t len, loff_t *off);
+static ssize_t	alm_write(struct file *file, const char __user *buf, size_t len, loff_t *off);
 /* Driver: Function prototypes */
-static int 	__init alman_init(void); 
-static void 	__exit alman_exit(void);
+static int 	__init alm_init(void); 
+static void 	__exit alm_exit(void);
 
 /* Private variables */
-static dev_t alman_devnum = 0;
-static struct class *alman_class;
-static struct cdev alman_cdev;
+static dev_t alm_devnum = 0;
+static struct class *alm_class;
+static struct cdev alm_cdev;
 
-static int alman_value;
-static LIST_HEAD(alman_node);
+static int alm_value;
+static LIST_HEAD(alm_node);
 
-static struct work_struct alman_work;
-static struct workqueue_struct *alman_workqueue;
+static struct work_struct alm_work;
+static struct workqueue_struct *alm_workqueue;
 
 static struct file_operations fops = {
 	.owner 		= THIS_MODULE,
-	.read		= alman_read,
-	.write 		= alman_write,
-	.open 		= alman_open,
-	.release	= alman_release,
+	.read		= alm_read,
+	.write 		= alm_write,
+	.open 		= alm_open,
+	.release	= alm_release,
 };
 
 /* Function implementations */
 /* Workqueue: Function implementations */
 static void workqueue_fn(struct work_struct *work)
 {
-	struct alman_list *tmp = NULL;
+	struct alm_list *tmp = NULL;
 
 	pr_info(DEV_INFO "Workqueue is called\n");
-	if ((tmp = kmalloc(sizeof(struct alman_list), GFP_KERNEL)) == NULL)
+	if ((tmp = kmalloc(sizeof(struct alm_list), GFP_KERNEL)) == NULL)
 	{
 		pr_err(DEV_INFO "Can't allocate memory\n");
 		return;
 	}
 
-	tmp->data = alman_value;
+	tmp->data = alm_value;
 	INIT_LIST_HEAD(&tmp->list);
-	list_add_tail(&tmp->list, &alman_node);
+	list_add_tail(&tmp->list, &alm_node);
 	
 	pr_info(DEV_INFO "Workqueue done\n");
 }
 
 /* Device file: Function implementations */
-static int alman_open(struct inode *inode, struct file *file) 
+static int alm_open(struct inode *inode, struct file *file) 
 {
 	pr_info(DEV_INFO "Driver open() called\n");
 	return 0;
 }
 
-static int alman_release(struct inode *inode, struct file *file)
+static int alm_release(struct inode *inode, struct file *file)
 {
 	pr_info(DEV_INFO "Driver release() called\n");
 	return 0;
 }
 
-static ssize_t alman_read(struct file *filep, char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_read(struct file *filep, char __user *buf, size_t len, loff_t *off)
 {
-	struct alman_list *tmp;
+	struct alm_list *tmp;
 	int count = 0;
 
 	pr_info(DEV_INFO "Driver read() called\n");
-	list_for_each_entry(tmp, &alman_node, list) { 
+	list_for_each_entry(tmp, &alm_node, list) { 
 		pr_info(DEV_INFO "Node %d, Data %d\n", count++, tmp->data);	
 	}
 	pr_info(DEV_INFO "Driver read() exit\n");
 	return 0;
 }
 
-static ssize_t alman_write(struct file *filep, const char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_write(struct file *filep, const char __user *buf, size_t len, loff_t *off)
 {
   char *tmp_buf;
 
@@ -111,83 +111,83 @@ static ssize_t alman_write(struct file *filep, const char __user *buf, size_t le
 		return -ENOMEM;
 	}	
 
-	sscanf(tmp_buf, "%d", &alman_value);
-	pr_info(DEV_INFO "Got value = %d\n", alman_value);
-	queue_work(alman_workqueue, &alman_work);
+	sscanf(tmp_buf, "%d", &alm_value);
+	pr_info(DEV_INFO "Got value = %d\n", alm_value);
+	queue_work(alm_workqueue, &alm_work);
 	return len;
 }
 
 /* Driver: Function implementations */
-static int __init alman_init(void) 
+static int __init alm_init(void) 
 {
 	/* Chardev: Allocate major number */
-	if (alloc_chrdev_region(&alman_devnum, 0, 1, MOD_NAME "_dev") < 0) 
+	if (alloc_chrdev_region(&alm_devnum, 0, 1, MOD_NAME "_dev") < 0) 
 	{
 		pr_err(DEV_INFO "Can't allocate major number for device\n");
 		return -1;
 	}
-	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alman_devnum), MINOR(alman_devnum));
+	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alm_devnum), MINOR(alm_devnum));
 	
 	/* Chardev: Create struct chardev */
-	cdev_init(&alman_cdev, &fops);
+	cdev_init(&alm_cdev, &fops);
 
 	/* Chardev: Add chardev to kernel */
-	if (cdev_add(&alman_cdev, alman_devnum, 1) < 0)
+	if (cdev_add(&alm_cdev, alm_devnum, 1) < 0)
 	{
 		pr_err(DEV_INFO "Can't add chardev to the system\n");
 		goto r_cdev;
 	}
 
 	/* Device file: Create struct class */
-	if ((alman_class = class_create(THIS_MODULE, MOD_NAME "_class")) == NULL)
+	if ((alm_class = class_create(THIS_MODULE, MOD_NAME "_class")) == NULL)
 	{
 		pr_err(DEV_INFO "Can't create struct class for device\n");
 		goto r_class;
 	}
 
 	/* Device file: Create the device */
-	if (device_create(alman_class, NULL, alman_devnum, NULL, MOD_NAME "_device") == NULL)
+	if (device_create(alm_class, NULL, alm_devnum, NULL, MOD_NAME "_device") == NULL)
 	{
 		pr_err(DEV_INFO "Can't create the device\n");
 		goto r_device;
 	}
 
 	/* Work queue: Initialization */
-	INIT_WORK(&alman_work, workqueue_fn);
-	alman_workqueue = create_workqueue(MOD_NAME "_workqueue");
+	INIT_WORK(&alm_work, workqueue_fn);
+	alm_workqueue = create_workqueue(MOD_NAME "_workqueue");
 
 	printk(DEV_INFO "Driver inserted\n");
 	return 0;
 
 r_device:
-	class_destroy(alman_class);
+	class_destroy(alm_class);
 r_class:
-	cdev_del(&alman_cdev);
+	cdev_del(&alm_cdev);
 r_cdev:
-	unregister_chrdev_region(alman_devnum, 1);
+	unregister_chrdev_region(alm_devnum, 1);
 
 	return -1;
 }
 
-static void __exit alman_exit(void)
+static void __exit alm_exit(void)
 {
-	struct alman_list *cursor, *tmp;
-	list_for_each_entry_safe(cursor, tmp, &alman_node, list)
+	struct alm_list *cursor, *tmp;
+	list_for_each_entry_safe(cursor, tmp, &alm_node, list)
 	{
 		list_del(&cursor->list);
 		kfree(cursor);
 	}
-	destroy_workqueue(alman_workqueue);
+	destroy_workqueue(alm_workqueue);
 
-	device_destroy(alman_class, alman_devnum);
-	class_destroy(alman_class);
-	cdev_del(&alman_cdev);
-	unregister_chrdev_region(alman_devnum, 1);
+	device_destroy(alm_class, alm_devnum);
+	class_destroy(alm_class);
+	cdev_del(&alm_cdev);
+	unregister_chrdev_region(alm_devnum, 1);
 	printk(DEV_INFO "Driver removed\n");
 }
 
-module_init(alman_init);
-module_exit(alman_exit);
+module_init(alm_init);
+module_exit(alm_exit);
 
 /* Module description */
 MODULE_LICENSE("GPL");

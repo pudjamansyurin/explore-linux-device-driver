@@ -3,15 +3,21 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
-#include <linux/workqueue.h>
+#include <linux/kthread.h>
 #include <linux/delay.h>
 
 /* Private macros */        
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
+#define THREAD_CNT 2
 
-/* Workqueue: Function prototypes */
-static void workqueue_fn(struct work_struct *work);
+/* Private types */
+struct thread_data {
+  struct task_struct *thread;
+  char name[10];
+  int index;
+};
+
 /* Device file: Function prototypes */
 static int	alm_open(struct inode *inode, struct file *file);
 static int	alm_release(struct inode *inode, struct file *file);
@@ -26,9 +32,6 @@ static dev_t alm_devnum = 0;
 static struct class *alm_class;
 static struct cdev alm_cdev;
 
-static struct work_struct alm_work;
-static struct workqueue_struct *alm_workqueue;
-
 static struct file_operations fops = {
 	.owner 		= THIS_MODULE,
 	.read		= alm_read,
@@ -37,14 +40,26 @@ static struct file_operations fops = {
 	.release	= alm_release,
 };
 
+static struct thread_data thread_list[THREAD_CNT];
+static unsigned long shared_var = 0;
+static struct mutex alm_mutex;
+
 /* Function implementations */
-/* Workqueue: Function implementations */
-static void workqueue_fn(struct work_struct *work)
+/* Thread: Function */
+static int fn_thread(void *pv)
 {
-	pr_info(DEV_INFO "Workqueue is called\n");
-	pr_info(DEV_INFO "Workqueue process heavy job\n");
-	msleep(5000);
-	pr_info(DEV_INFO "Workqueue done\n");
+  int idx = *(int*) pv;
+
+  while(!kthread_should_stop()) 
+  {
+		pr_info(DEV_INFO "Thread %d is running\n", idx);
+    mutex_lock(&alm_mutex);
+		pr_info(DEV_INFO "Thread %d, shared_var = %ld\n", idx, ++shared_var);
+    mutex_unlock(&alm_mutex);
+		msleep(1000);
+  }
+
+	return 0;
 }
 
 /* Device file: Function implementations */
@@ -63,8 +78,6 @@ static int alm_release(struct inode *inode, struct file *file)
 static ssize_t alm_read(struct file *filep, char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver read() called\n");
-	queue_work(alm_workqueue, &alm_work);
-	pr_info(DEV_INFO "Driver read() exit\n");
 	return 0;
 }
 
@@ -77,7 +90,9 @@ static ssize_t alm_write(struct file *filep, const char __user *buf, size_t len,
 /* Driver: Function implementations */
 static int __init alm_init(void) 
 {
-	/* Chardev: Allocate major number */
+  int i;
+
+	/* Device Number: Allocate major number */
 	if (alloc_chrdev_region(&alm_devnum, 0, 1, MOD_NAME "_dev") < 0) 
 	{
 		pr_err(DEV_INFO "Can't allocate major number for device\n");
@@ -109,13 +124,29 @@ static int __init alm_init(void)
 		goto r_device;
 	}
 
-	/* Work queue: Initialization */
-	INIT_WORK(&alm_work, workqueue_fn);
-	alm_workqueue = create_workqueue(MOD_NAME "_workqueue");
+  /* Mutex */
+  mutex_init(&alm_mutex);
 
+	/* Kernel thread: Create & Wakeup */
+  for (i=0; i<THREAD_CNT; i++) 
+  {
+    struct thread_data* th = &thread_list[i];
+
+    th->index = i;
+    sprintf(th->name, "thread_%d", th->index);
+    
+    if ((th->thread = kthread_run(fn_thread, &th->index, th->name)) == NULL)
+    {
+      pr_info(DEV_INFO "Can't create thread %d\n", i);
+      goto r_thread;
+    }
+  }
+	
 	printk(DEV_INFO "Driver inserted\n");
 	return 0;
 
+r_thread:
+	device_destroy(alm_class, alm_devnum);
 r_device:
 	class_destroy(alm_class);
 r_class:
@@ -128,7 +159,13 @@ r_cdev:
 
 static void __exit alm_exit(void)
 {
-	destroy_workqueue(alm_workqueue);
+  int i;
+  
+  for (i=0; i<THREAD_CNT; i++) {
+    struct thread_data* th = &thread_list[i];
+
+	  kthread_stop(th->thread);
+  }
 
 	device_destroy(alm_class, alm_devnum);
 	class_destroy(alm_class);

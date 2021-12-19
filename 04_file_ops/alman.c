@@ -11,50 +11,50 @@
 /* Private variables */
 static dev_t devnum = 0;
 static struct class *dev_class;
-static struct cdev alman_cdev;
+static struct cdev alm_cdev;
 
 /* Function prototypes */
-static int 	__init alman_init(void); 
-static void 	__exit alman_exit(void);
-static int	alman_open(struct inode *inode, struct file *file);
-static int	alman_release(struct inode *inode, struct file *file);
-static ssize_t	alman_read(struct file *filep, char __user *buf, size_t len, loff_t *off);
-static ssize_t	alman_write(struct file *filep, const char __user *buf, size_t len, loff_t *off);
+static int 	__init alm_init(void); 
+static void 	__exit alm_exit(void);
+static int	alm_open(struct inode *inode, struct file *file);
+static int	alm_release(struct inode *inode, struct file *file);
+static ssize_t	alm_read(struct file *filep, char __user *buf, size_t len, loff_t *off);
+static ssize_t	alm_write(struct file *filep, const char __user *buf, size_t len, loff_t *off);
 
 static struct file_operations fops = {
 	.owner 		= THIS_MODULE,
-	.read		= alman_read,
-	.write 		= alman_write,
-	.open 		= alman_open,
-	.release	= alman_release,
+	.read		= alm_read,
+	.write 		= alm_write,
+	.open 		= alm_open,
+	.release	= alm_release,
 };
 
 /* Function implementations */
-static int alman_open(struct inode *inode, struct file *file) 
+static int alm_open(struct inode *inode, struct file *file) 
 {
 	pr_info(DEV_INFO "Driver open() called\n");
 	return 0;
 }
 
-static int alman_release(struct inode *inode, struct file *file)
+static int alm_release(struct inode *inode, struct file *file)
 {
 	pr_info(DEV_INFO "Driver release() called\n");
 	return 0;
 }
 
-static ssize_t alman_read(struct file *filep, char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_read(struct file *filep, char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver read() called\n");
 	return 0;
 }
 
-static ssize_t alman_write(struct file *filep, const char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_write(struct file *filep, const char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver write() called\n");
 	return len;
 }
 
-static int __init alman_init(void) 
+static int __init alm_init(void) 
 {
 	/* Allocate major number */
 	if (alloc_chrdev_region(&devnum, 0, 1, MOD_NAME "_dev") < 0) 
@@ -65,10 +65,10 @@ static int __init alman_init(void)
 	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(devnum), MINOR(devnum));
 	
 	/* Create struct chardev */
-	cdev_init(&alman_cdev, &fops);
+	cdev_init(&alm_cdev, &fops);
 
 	/* Add chardev to kernel */
-	if (cdev_add(&alman_cdev, devnum, 1) < 0)
+	if (cdev_add(&alm_cdev, devnum, 1) < 0)
 	{
 		pr_err(DEV_INFO "Can't add chardev to the system\n");
 		return -1;
@@ -100,17 +100,17 @@ r_class:
 
 }
 
-static void __exit alman_exit(void)
+static void __exit alm_exit(void)
 {
 	device_destroy(dev_class, devnum);
 	class_destroy(dev_class);
-	cdev_del(&alman_cdev);
+	cdev_del(&alm_cdev);
 	unregister_chrdev_region(devnum, 1);
 	printk(DEV_INFO "Driver removed\n");
 }
 
-module_init(alman_init);
-module_exit(alman_exit);
+module_init(alm_init);
+module_exit(alm_exit);
 
 /* Module description */
 MODULE_LICENSE("GPL");
