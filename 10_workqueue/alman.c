@@ -10,6 +10,9 @@
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
+#define WQ_DEDICATED 1
+#define WQ_DYNAMIC 1
+
 /* Workqueue: Function prototypes */
 static void workqueue_fn(struct work_struct *work);
 /* Device file: Function prototypes */
@@ -26,12 +29,19 @@ static dev_t alm_devnum = 0;
 static struct class *alm_class;
 static struct cdev alm_cdev;
 
+#if WQ_DYNAMIC
 static struct work_struct alm_work;
+#else
+static DECLARE_WORK(alm_work, workqueue_fn);
+#endif
+
+#if WQ_DEDICATED
 static struct workqueue_struct *alm_workqueue;
+#endif
 
 static struct file_operations fops = {
 	.owner 		= THIS_MODULE,
-	.read		= alm_read,
+	.read		  = alm_read,
 	.write 		= alm_write,
 	.open 		= alm_open,
 	.release	= alm_release,
@@ -63,7 +73,11 @@ static int alm_release(struct inode *inode, struct file *file)
 static ssize_t alm_read(struct file *filep, char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver read() called\n");
-	queue_work(alm_workqueue, &alm_work);
+#if WQ_DEDICATED	
+  queue_work(alm_workqueue, &alm_work);
+#else
+	schedule_work(&alm_work);
+#endif
 	pr_info(DEV_INFO "Driver read() exit\n");
 	return 0;
 }
@@ -110,8 +124,12 @@ static int __init alm_init(void)
 	}
 
 	/* Work queue: Initialization */
+#if WQ_DYNAMIC
 	INIT_WORK(&alm_work, workqueue_fn);
+#endif
+#if WQ_DEDICATED
 	alm_workqueue = create_workqueue(MOD_NAME "_workqueue");
+#endif
 
 	printk(DEV_INFO "Driver inserted\n");
 	return 0;
@@ -128,7 +146,9 @@ r_cdev:
 
 static void __exit alm_exit(void)
 {
+#if WQ_DEDICATED
 	destroy_workqueue(alm_workqueue);
+#endif
 
 	device_destroy(alm_class, alm_devnum);
 	class_destroy(alm_class);

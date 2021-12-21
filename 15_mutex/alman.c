@@ -9,6 +9,8 @@
 /* Private macros */        
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
+
+#define MUTEX_DYNAMIC 0
 #define THREAD_CNT 2
 
 /* Private types */
@@ -40,9 +42,13 @@ static struct file_operations fops = {
 	.release	= alm_release,
 };
 
+#if MUTEX_DYNAMIC
+static struct mutex alm_mutex;
+#else
+static DEFINE_MUTEX(alm_mutex);
+#endif
 static struct thread_data thread_list[THREAD_CNT];
 static unsigned long shared_var = 0;
-static struct mutex alm_mutex;
 
 /* Function implementations */
 /* Thread: Function */
@@ -125,7 +131,9 @@ static int __init alm_init(void)
 	}
 
   /* Mutex */
+#if MUTEX_DYNAMIC
   mutex_init(&alm_mutex);
+#endif
 
 	/* Kernel thread: Create & Wakeup */
   for (i=0; i<THREAD_CNT; i++) 

@@ -10,6 +10,10 @@
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
+#define TASKLET_DYNAMIC 0
+
+/* Tasklet: Function prototypes */
+static void tasklet_fn(unsigned long arg);
 /* Device file: Function prototypes */
 static int	alm_open(struct inode *inode, struct file *file);
 static int	alm_release(struct inode *inode, struct file *file);
@@ -32,11 +36,15 @@ static struct file_operations fops = {
 	.release	= alm_release,
 };
 
-struct tasklet_struct *alm_tasklet = NULL;
+#if TASKLET_DYNAMIC
+static struct tasklet_struct alm_tasklet;
+#else
+static DECLARE_TASKLET_OLD(alm_tasklet, tasklet_fn);
+#endif
 
 /* Function implementations */
-/* Thread: Function */
-static void bottom_func(unsigned long arg)
+/* Tasklet: Function */
+static void tasklet_fn(unsigned long arg)
 {
 	pr_info(DEV_INFO "Tasklet is executing in atomic context\n");
 	pr_info(DEV_INFO "Tasklet arg = %ld\n", arg);	
@@ -58,7 +66,7 @@ static int alm_release(struct inode *inode, struct file *file)
 static ssize_t alm_read(struct file *filep, char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver read() called\n");
-	tasklet_schedule(alm_tasklet);
+	tasklet_schedule(&alm_tasklet);
 	pr_info(DEV_INFO "Driver read() exited\n");
 	return 0;
 }
@@ -105,19 +113,13 @@ static int __init alm_init(void)
 	}
 
 	/* Tasklet (atomic context) */
-	if ((alm_tasklet = kmalloc(sizeof(struct tasklet_struct), GFP_KERNEL)) == NULL) 
-	{
-		pr_err(DEV_INFO "Can't allocate tasklet from memory\n");
-		goto r_tasklet;
-	}
-
-	tasklet_init(alm_tasklet, bottom_func, 313);
+#if TASKLET_DYNAMIC
+	tasklet_init(&alm_tasklet, tasklet_fn, 313);
+#endif
 
 	printk(DEV_INFO "Driver inserted\n");
 	return 0;
 
-r_tasklet:
-	device_destroy(alm_class, alm_devnum);
 r_device:
 	class_destroy(alm_class);
 r_class:
@@ -130,8 +132,9 @@ r_cdev:
 
 static void __exit alm_exit(void)
 {
-	tasklet_kill(alm_tasklet);
-	kfree(alm_tasklet);
+#if TASKLET_DYNAMIC
+	tasklet_kill(&alm_tasklet);
+#endif
 
 	device_destroy(alm_class, alm_devnum);
 	class_destroy(alm_class);

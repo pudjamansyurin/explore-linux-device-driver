@@ -23,7 +23,7 @@ int main()
 	int fd;
 	char answer;
 
-	fd = open("/dev/alm_device", O_RDWR);
+	fd = open("/dev/alman_device", O_RDWR);
 	if (fd < 0) 
 	{
 		printf("Can't open device file\n");
