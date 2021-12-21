@@ -9,6 +9,8 @@
 /* Private macros */        
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
+
+#define SPIN_DYNAMIC 0
 #define THREAD_CNT 2
 
 /* Private types */
@@ -40,8 +42,12 @@ static struct file_operations fops = {
 	.release	= alm_release,
 };
 
-static struct thread_data thread_list[THREAD_CNT];
+#if SPIN_DYNAMIC
+static spinlock_t alm_spinlock;
+#else
 static DEFINE_SPINLOCK(alm_spinlock);
+#endif
+static struct thread_data thread_list[THREAD_CNT];
 static unsigned long shared_var = 0;
 
 /* Function implementations */
@@ -131,6 +137,11 @@ static int __init alm_init(void)
 		pr_err(DEV_INFO "Can't create the device\n");
 		goto r_device;
 	}
+
+  /* Spinlock */
+#if SPIN_DYNAMIC
+  spin_lock_init(&alm_spinlock);
+#endif
 
 	/* Kernel thread: Create & Wakeup */
   for (i=0; i<THREAD_CNT; i++) 

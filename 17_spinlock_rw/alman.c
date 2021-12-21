@@ -10,16 +10,11 @@
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
-#define MUTEX_DYNAMIC 0
-#define THREAD_CNT 2
+#define SPIN_DYNAMIC 1
 
-/* Private types */
-struct thread_data {
-  struct task_struct *thread;
-  char name[10];
-  int index;
-};
-
+/* Threads: Function prototypes */
+static int thread_fn1(void *pv);
+static int thread_fn2(void *pv);
 /* Device file: Function prototypes */
 static int	alm_open(struct inode *inode, struct file *file);
 static int	alm_release(struct inode *inode, struct file *file);
@@ -36,36 +31,44 @@ static struct cdev alm_cdev;
 
 static struct file_operations fops = {
 	.owner 		= THIS_MODULE,
-	.read		= alm_read,
+	.read		  = alm_read,
 	.write 		= alm_write,
 	.open 		= alm_open,
 	.release	= alm_release,
 };
 
-#if MUTEX_DYNAMIC
-static struct mutex alm_mutex;
+#if SPIN_DYNAMIC
+static rwlock_t alm_rwlock;
 #else
-static DEFINE_MUTEX(alm_mutex);
+static DEFINE_RWLOCK(alm_rwlock);
 #endif
-static struct thread_data thread_list[THREAD_CNT];
 static unsigned long shared_var = 0;
+static struct task_struct *alm_thread1;
+static struct task_struct *alm_thread2; 
 
 /* Function implementations */
 /* Thread: Function */
-static int fn_thread(void *pv)
+int thread_fn1(void *pv)
 {
-  int idx = *(int*) pv;
+    while(!kthread_should_stop()) {  
+        write_lock(&alm_rwlock);
+        shared_var++;
+        pr_info("Producer: Write value %lu\n", shared_var);
+        write_unlock(&alm_rwlock);
+        msleep(1000);
+    }
+    return 0;
+}
 
-  while(!kthread_should_stop()) 
-  {
-		pr_info(DEV_INFO "Thread %d is running\n", idx);
-    mutex_lock(&alm_mutex);
-		pr_info(DEV_INFO "Thread %d, shared_var = %ld\n", idx, ++shared_var);
-    mutex_unlock(&alm_mutex);
-		msleep(1000);
-  }
-
-	return 0;
+int thread_fn2(void *pv)
+{
+    while(!kthread_should_stop()) {
+        read_lock(&alm_rwlock);
+        pr_info("Consumer: Read value %lu\n", shared_var);
+        read_unlock(&alm_rwlock);
+        msleep(500);
+    }
+    return 0;
 }
 
 /* Device file: Function implementations */
@@ -96,8 +99,6 @@ static ssize_t alm_write(struct file *filep, const char __user *buf, size_t len,
 /* Driver: Function implementations */
 static int __init alm_init(void) 
 {
-  int i;
-
 	/* Device Number: Allocate major number */
 	if (alloc_chrdev_region(&alm_devnum, 0, 1, MOD_NAME "_dev") < 0) 
 	{
@@ -130,24 +131,27 @@ static int __init alm_init(void)
 		goto r_device;
 	}
 
-  /* Mutex */
-#if MUTEX_DYNAMIC
-  mutex_init(&alm_mutex);
+  /* Spinlock */
+#if SPIN_DYNAMIC
+  rwlock_init(&alm_rwlock);
 #endif
 
-	/* Kernel thread: Create & Wakeup */
-  for (i=0; i<THREAD_CNT; i++) 
-  {
-    struct thread_data* th = &thread_list[i];
+  /* Creating Thread 1 */
+  alm_thread1 = kthread_run(thread_fn1, NULL, "Thread1");
+  if(alm_thread1) {
+      pr_err("Kthread1 Created Successfully...\n");
+  } else {
+      pr_err("Cannot create kthread1\n");
+        goto r_thread;
+  }
 
-    th->index = i;
-    sprintf(th->name, "thread_%d", th->index);
-    
-    if ((th->thread = kthread_run(fn_thread, &th->index, th->name)) == NULL)
-    {
-      pr_info(DEV_INFO "Can't create thread %d\n", i);
-      goto r_thread;
-    }
+    /* Creating Thread 2 */
+  alm_thread2 = kthread_run(thread_fn2, NULL, "Thread2");
+  if(alm_thread2) {
+      pr_err("Kthread2 Created Successfully...\n");
+  } else {
+      pr_err("Cannot create kthread2\n");
+        goto r_thread;
   }
 	
 	printk(DEV_INFO "Driver inserted\n");
@@ -167,13 +171,8 @@ r_cdev:
 
 static void __exit alm_exit(void)
 {
-  int i;
-  
-  for (i=0; i<THREAD_CNT; i++) {
-    struct thread_data* th = &thread_list[i];
-
-	  kthread_stop(th->thread);
-  }
+  kthread_stop(alm_thread1);
+  kthread_stop(alm_thread2);
 
 	device_destroy(alm_class, alm_devnum);
 	class_destroy(alm_class);
