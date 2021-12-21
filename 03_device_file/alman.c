@@ -11,11 +11,11 @@ static dev_t devnum = 0;
 static struct class *dev_class;
 
 /* Functions declaration */
-static int 	__init mod_init(void); 
-static void 	__exit mod_exit(void);
+static int 	__init alm_init(void); 
+static void 	__exit alm_exit(void);
 
 /* Functions implementation */
-static int __init mod_init(void) 
+static int __init alm_init(void) 
 {
 	/* Allocate major number */
 	if ((alloc_chrdev_region(&devnum, 0, 1, MOD_NAME)) < 0) 
@@ -50,7 +50,7 @@ r_class:
 
 }
 
-static void __exit mod_exit(void)
+static void __exit alm_exit(void)
 {
 	device_destroy(dev_class, devnum);
 	class_destroy(dev_class);
@@ -58,8 +58,8 @@ static void __exit mod_exit(void)
 	printk(DEV_INFO "Driver removed\n");
 }
 
-module_init(mod_init);
-module_exit(mod_exit);
+module_init(alm_init);
+module_exit(alm_exit);
 
 /* Module description */
 MODULE_LICENSE("GPL");

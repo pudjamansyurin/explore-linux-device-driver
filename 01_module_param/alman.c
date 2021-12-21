@@ -1,11 +1,10 @@
 #include <linux/module.h>
 
-
-#define MOD_NAME "arg parser: "
+#define MOD_NAME "alm_param: "
 
 /* Functions declaration */
-static int __init mod_init(void); 
-static void __exit mod_exit(void);
+static int __init alm_init(void); 
+static void __exit alm_exit(void);
 static int notify_param(const char *value, const struct kernel_param *kp);
 
 /* Private variables */
@@ -33,7 +32,7 @@ static int notify_param(const char *value, const struct kernel_param *kp)
 	return -1;
 }
 
-static int __init mod_init(void) 
+static int __init alm_init(void) 
 {
 	int i;
 
@@ -48,7 +47,7 @@ static int __init mod_init(void)
 	return 0;
 }
 
-static void __exit mod_exit(void)
+static void __exit alm_exit(void)
 {
 	printk(KERN_INFO MOD_NAME "Driver removed\n");
 }
@@ -59,11 +58,11 @@ module_param(name_arg, charp, S_IRUSR|S_IWUSR);
 module_param_array(array_arg, int, NULL, S_IRUSR|S_IWUSR);
 module_param_cb(cb_value_arg, &my_param_ops, &cb_value_arg, S_IRUGO|S_IWUSR);
 
-module_init(mod_init);
-module_exit(mod_exit);
+module_init(alm_init);
+module_exit(alm_exit);
 
 /* Module description */
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pudja Mansyurin");
-MODULE_DESCRIPTION("Simple hello world driver");
+MODULE_DESCRIPTION(MOD_NAME);
 MODULE_VERSION("3:5.4");
