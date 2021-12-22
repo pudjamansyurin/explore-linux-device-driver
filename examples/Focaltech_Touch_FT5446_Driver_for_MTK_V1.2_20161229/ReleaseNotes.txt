@@ -1,0 +1,6 @@
+V1.2
+	more IC supported, 2016-12-29
+V1.1
+	more IC supported, 2016-10-17
+V1.0
+	first release, 2016-08-12
