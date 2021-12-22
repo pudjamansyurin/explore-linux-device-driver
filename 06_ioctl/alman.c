@@ -5,12 +5,12 @@
 #include <linux/device.h>
 #include <linux/ioctl.h>
 
-/* Private macros */        
+/* Private macros */
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
-#define WR_VALUE _IOW('a', 'a', int32_t*)
-#define RD_VALUE _IOR('a', 'b', int32_t*)
+#define WR_VALUE _IOW('a', 'a', int32_t *)
+#define RD_VALUE _IOR('a', 'b', int32_t *)
 
 /* Private variables */
 static dev_t alm_devnum = 0;
@@ -20,79 +20,79 @@ static struct cdev alm_cdev;
 static int32_t alm_value;
 
 /* Function prototypes */
-static int 	__init alm_init(void); 
-static void 	__exit alm_exit(void);
-static int	alm_open(struct inode *inode, struct file *file);
-static int	alm_release(struct inode *inode, struct file *file);
-static ssize_t	alm_read(struct file *file, char __user *buf, size_t len, loff_t *off);
-static ssize_t	alm_write(struct file *file, const char __user *buf, size_t len, loff_t *off);
-static long	alm_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+static int __init alm_init(void);
+static void __exit alm_exit(void);
+static int alm_open(struct inode *inode, struct file *filp);
+static int alm_release(struct inode *inode, struct file *filp);
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off);
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off);
+static long alm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
 static struct file_operations fops = {
-	.owner 		= THIS_MODULE,
-	.read		= alm_read,
-	.write 		= alm_write,
-	.open 		= alm_open,
-	.release	= alm_release,
-	.unlocked_ioctl	= alm_ioctl,
+		.owner = THIS_MODULE,
+		.read = alm_read,
+		.write = alm_write,
+		.open = alm_open,
+		.release = alm_release,
+		.unlocked_ioctl = alm_ioctl,
 };
 
 /* Function implementations */
-static int alm_open(struct inode *inode, struct file *file) 
+static int alm_open(struct inode *inode, struct file *filp)
 {
 	pr_info(DEV_INFO "Driver open() called\n");
 	return 0;
 }
 
-static int alm_release(struct inode *inode, struct file *file)
+static int alm_release(struct inode *inode, struct file *filp)
 {
 	pr_info(DEV_INFO "Driver release() called\n");
 	return 0;
 }
 
-static ssize_t alm_read(struct file *filep, char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver read() called\n");
 	return 0;
 }
 
-static ssize_t alm_write(struct file *filep, const char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver write() called\n");
 	return len;
 }
 
-static long alm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long alm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	switch(cmd) 
+	switch (cmd)
 	{
-		case WR_VALUE:
-			if (copy_from_user(&alm_value, (int32_t*) arg, sizeof(alm_value)))
-				pr_err("Data write Error\n");
-			pr_info("Value = %d\n", alm_value);
-			break;
+	case WR_VALUE:
+		if (copy_from_user(&alm_value, (int32_t *)arg, sizeof(alm_value)))
+			pr_err("Data write Error\n");
+		pr_info("Value = %d\n", alm_value);
+		break;
 
-		case RD_VALUE:
-			if (copy_to_user((int32_t*) arg, &alm_value, sizeof(alm_value))) 
-				pr_err("Data read Error\n");
-			break;
+	case RD_VALUE:
+		if (copy_to_user((int32_t *)arg, &alm_value, sizeof(alm_value)))
+			pr_err("Data read Error\n");
+		break;
 
-		default:
-			break;
+	default:
+		break;
 	}
 	return 0;
 }
 
-static int __init alm_init(void) 
+static int __init alm_init(void)
 {
 	/* Allocate major number */
-	if (alloc_chrdev_region(&alm_devnum, 0, 1, MOD_NAME "_dev") < 0) 
+	if (alloc_chrdev_region(&alm_devnum, 0, 1, MOD_NAME "_dev") < 0)
 	{
 		pr_err(DEV_INFO "Can't allocate major number for device\n");
 		return -1;
 	}
 	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alm_devnum), MINOR(alm_devnum));
-	
+
 	/* Create struct chardev */
 	cdev_init(&alm_cdev, &fops);
 
@@ -126,7 +126,6 @@ r_class:
 	unregister_chrdev_region(alm_devnum, 1);
 
 	return -1;
-
 }
 
 static void __exit alm_exit(void)

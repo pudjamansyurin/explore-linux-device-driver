@@ -6,21 +6,21 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 
-/* Private macros */        
+/* Private macros */
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
 /* Device file: Function prototypes */
-static int	    alm_open(struct inode *inode, struct file *file);
-static int	    alm_release(struct inode *inode, struct file *file);
-static ssize_t	alm_read(struct file *file, char __user *buf, size_t len, loff_t *off);
-static ssize_t	alm_write(struct file *file, const char __user *buf, size_t len, loff_t *off);
+static int alm_open(struct inode *inode, struct file *filp);
+static int alm_release(struct inode *inode, struct file *filp);
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off);
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off);
 /* Sysfs: Function prototypes */
-static ssize_t 	sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf);
-static ssize_t 	sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count);
+static ssize_t sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf);
+static ssize_t sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count);
 /* Driver: Function prototypes */
-static int 	    __init alm_init(void); 
-static void 	  __exit alm_exit(void);
+static int __init alm_init(void);
+static void __exit alm_exit(void);
 
 /* Private variables */
 static dev_t alm_devnum = 0;
@@ -32,22 +32,22 @@ static struct kobject *alm_kobj_ref;
 static struct kobj_attribute alm_kobj_attr = __ATTR(alm_value, 0660, sysfs_show, sysfs_store);
 
 static struct file_operations fops = {
-	.owner 		= THIS_MODULE,
-	.read		= alm_read,
-	.write 		= alm_write,
-	.open 		= alm_open,
-	.release	= alm_release,
+		.owner = THIS_MODULE,
+		.read = alm_read,
+		.write = alm_write,
+		.open = alm_open,
+		.release = alm_release,
 };
 
 /* Function implementations */
 /* Sysfs: Function implementations */
-static ssize_t 	sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+static ssize_t sysfs_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	pr_info(DEV_INFO "Sysfs show()\n");
 	return sprintf(buf, "%d", alm_value);
 }
 
-static ssize_t 	sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+static ssize_t sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
 	pr_info(DEV_INFO "Sysfs store()\n");
 	sscanf(buf, "%d", &alm_value);
@@ -55,41 +55,41 @@ static ssize_t 	sysfs_store(struct kobject *kobj, struct kobj_attribute *attr, c
 }
 
 /* Device file: Function implementations */
-static int alm_open(struct inode *inode, struct file *file) 
+static int alm_open(struct inode *inode, struct file *filp)
 {
 	pr_info(DEV_INFO "Driver open() called\n");
 	return 0;
 }
 
-static int alm_release(struct inode *inode, struct file *file)
+static int alm_release(struct inode *inode, struct file *filp)
 {
 	pr_info(DEV_INFO "Driver release() called\n");
 	return 0;
 }
 
-static ssize_t alm_read(struct file *filep, char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver read() called\n");
 	return 0;
 }
 
-static ssize_t alm_write(struct file *filep, const char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver write() called\n");
 	return len;
 }
 
 /* Driver: Function implementations */
-static int __init alm_init(void) 
+static int __init alm_init(void)
 {
 	/* Chardev: Allocate major number */
-	if (alloc_chrdev_region(&alm_devnum, 0, 1, MOD_NAME "_dev") < 0) 
+	if (alloc_chrdev_region(&alm_devnum, 0, 1, MOD_NAME "_dev") < 0)
 	{
 		pr_err(DEV_INFO "Can't allocate major number for device\n");
 		return -1;
 	}
 	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alm_devnum), MINOR(alm_devnum));
-	
+
 	/* Chardev: Create struct chardev */
 	cdev_init(&alm_cdev, &fops);
 
@@ -115,7 +115,7 @@ static int __init alm_init(void)
 	}
 
 	/* Sysfs: create dir in /sys/kernel/ */
-	alm_kobj_ref = kobject_create_and_add(MOD_NAME "_sysfs", kernel_kobj); 
+	alm_kobj_ref = kobject_create_and_add(MOD_NAME "_sysfs", kernel_kobj);
 
 	/* Sysfs: create the file */
 	if (sysfs_create_file(alm_kobj_ref, &alm_kobj_attr.attr))
@@ -135,7 +135,7 @@ r_class:
 	cdev_del(&alm_cdev);
 r_cdev:
 	unregister_chrdev_region(alm_devnum, 1);
-	
+
 	return -1;
 }
 

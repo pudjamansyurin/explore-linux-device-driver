@@ -6,19 +6,19 @@
 #include <linux/wait.h>
 #include <linux/kthread.h>
 
-/* Private macros */        
+/* Private macros */
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 #define WQ_DYNAMIC 1
 
 /* Device file: Function prototypes */
-static int	    alm_open(struct inode *inode, struct file *file);
-static int	    alm_release(struct inode *inode, struct file *file);
-static ssize_t	alm_read(struct file *file, char __user *buf, size_t len, loff_t *off);
-static ssize_t	alm_write(struct file *file, const char __user *buf, size_t len, loff_t *off);
+static int alm_open(struct inode *inode, struct file *filp);
+static int alm_release(struct inode *inode, struct file *filp);
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off);
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off);
 /* Driver: Function prototypes */
-static int 	    __init alm_init(void); 
-static void 	  __exit alm_exit(void);
+static int __init alm_init(void);
+static void __exit alm_exit(void);
 
 /* Private variables */
 static dev_t alm_devnum = 0;
@@ -35,23 +35,23 @@ static int wq_flag = 0;
 static struct task_struct *wait_thread;
 
 static struct file_operations fops = {
-	.owner 		= THIS_MODULE,
-	.read		= alm_read,
-	.write 		= alm_write,
-	.open 		= alm_open,
-	.release	= alm_release,
+		.owner = THIS_MODULE,
+		.read = alm_read,
+		.write = alm_write,
+		.open = alm_open,
+		.release = alm_release,
 };
 
 /* Function implementations */
 /* Thread: Function */
 static int wait_func(void *unused)
 {
-	while(1) 
+	while (1)
 	{
 		pr_info(DEV_INFO "Waitting for event\n");
 		wait_event_interruptible(alm_wq, wq_flag != 0);
 
-		if (wq_flag == 2) 
+		if (wq_flag == 2)
 		{
 			pr_info(DEV_INFO "Got event from exit()\n");
 			return 0;
@@ -63,19 +63,19 @@ static int wait_func(void *unused)
 }
 
 /* Device file: Function implementations */
-static int alm_open(struct inode *inode, struct file *file) 
+static int alm_open(struct inode *inode, struct file *filp)
 {
 	pr_info(DEV_INFO "Driver open() called\n");
 	return 0;
 }
 
-static int alm_release(struct inode *inode, struct file *file)
+static int alm_release(struct inode *inode, struct file *filp)
 {
 	pr_info(DEV_INFO "Driver release() called\n");
 	return 0;
 }
 
-static ssize_t alm_read(struct file *filep, char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver read() called\n");
 	wq_flag = 1;
@@ -83,23 +83,23 @@ static ssize_t alm_read(struct file *filep, char __user *buf, size_t len, loff_t
 	return 0;
 }
 
-static ssize_t alm_write(struct file *filep, const char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver write() called\n");
 	return len;
 }
 
 /* Driver: Function implementations */
-static int __init alm_init(void) 
+static int __init alm_init(void)
 {
 	/* Chardev: Allocate major number */
-	if (alloc_chrdev_region(&alm_devnum, 0, 1, MOD_NAME "_dev") < 0) 
+	if (alloc_chrdev_region(&alm_devnum, 0, 1, MOD_NAME "_dev") < 0)
 	{
 		pr_err(DEV_INFO "Can't allocate major number for device\n");
 		return -1;
 	}
 	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alm_devnum), MINOR(alm_devnum));
-	
+
 	/* Chardev: Create struct chardev */
 	cdev_init(&alm_cdev, &fops);
 
@@ -133,7 +133,7 @@ static int __init alm_init(void)
 		pr_info(DEV_INFO "Can't create thread\n");
 		goto r_thread;
 	}
-	
+
 	/* Kernel thread: Wakeup */
 	pr_info(DEV_INFO "Thread created sucessfully\n");
 	wake_up_process(wait_thread);
@@ -149,7 +149,7 @@ r_class:
 	cdev_del(&alm_cdev);
 r_cdev:
 	unregister_chrdev_region(alm_devnum, 1);
-	
+
 	return -1;
 }
 

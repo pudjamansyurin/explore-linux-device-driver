@@ -4,7 +4,7 @@
 #include <linux/device.h>
 #include <linux/cdev.h>
 
-/* Private macros */        
+/* Private macros */
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
@@ -14,56 +14,56 @@ static struct class *dev_class;
 static struct cdev alm_cdev;
 
 /* Function prototypes */
-static int 	__init alm_init(void); 
-static void 	__exit alm_exit(void);
-static int	alm_open(struct inode *inode, struct file *file);
-static int	alm_release(struct inode *inode, struct file *file);
-static ssize_t	alm_read(struct file *filep, char __user *buf, size_t len, loff_t *off);
-static ssize_t	alm_write(struct file *filep, const char __user *buf, size_t len, loff_t *off);
+static int __init alm_init(void);
+static void __exit alm_exit(void);
+static int alm_open(struct inode *inode, struct file *filp);
+static int alm_release(struct inode *inode, struct file *filp);
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off);
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off);
 
 static struct file_operations fops = {
-	.owner 		= THIS_MODULE,
-	.read		= alm_read,
-	.write 		= alm_write,
-	.open 		= alm_open,
-	.release	= alm_release,
+		.owner = THIS_MODULE,
+		.read = alm_read,
+		.write = alm_write,
+		.open = alm_open,
+		.release = alm_release,
 };
 
 /* Function implementations */
-static int alm_open(struct inode *inode, struct file *file) 
+static int alm_open(struct inode *inode, struct file *filp)
 {
 	pr_info(DEV_INFO "Driver open() called\n");
 	return 0;
 }
 
-static int alm_release(struct inode *inode, struct file *file)
+static int alm_release(struct inode *inode, struct file *filp)
 {
 	pr_info(DEV_INFO "Driver release() called\n");
 	return 0;
 }
 
-static ssize_t alm_read(struct file *filep, char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver read() called\n");
 	return 0;
 }
 
-static ssize_t alm_write(struct file *filep, const char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver write() called\n");
 	return len;
 }
 
-static int __init alm_init(void) 
+static int __init alm_init(void)
 {
 	/* Allocate major number */
-	if (alloc_chrdev_region(&devnum, 0, 1, MOD_NAME "_dev") < 0) 
+	if (alloc_chrdev_region(&devnum, 0, 1, MOD_NAME "_dev") < 0)
 	{
 		pr_err(DEV_INFO "Can't allocate major number for device\n");
 		return -1;
 	}
 	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(devnum), MINOR(devnum));
-	
+
 	/* Create struct chardev */
 	cdev_init(&alm_cdev, &fops);
 
@@ -97,7 +97,6 @@ r_class:
 	unregister_chrdev_region(devnum, 1);
 
 	return -1;
-
 }
 
 static void __exit alm_exit(void)

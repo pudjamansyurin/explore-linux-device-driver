@@ -7,26 +7,27 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 
-/* Private macros */        
+/* Private macros */
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
 /* Type prototypes */
-struct alm_list {
-	struct list_head list;	
+struct alm_list
+{
+	struct list_head list;
 	int data;
 };
 
 /* Workqueue: Function prototypes */
-static void 	workqueue_fn(struct work_struct *work);
+static void workqueue_fn(struct work_struct *work);
 /* Device file: Function prototypes */
-static int	alm_open(struct inode *inode, struct file *file);
-static int	alm_release(struct inode *inode, struct file *file);
-static ssize_t	alm_read(struct file *file, char __user *buf, size_t len, loff_t *off);
-static ssize_t	alm_write(struct file *file, const char __user *buf, size_t len, loff_t *off);
+static int alm_open(struct inode *inode, struct file *filp);
+static int alm_release(struct inode *inode, struct file *filp);
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off);
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off);
 /* Driver: Function prototypes */
-static int 	__init alm_init(void); 
-static void 	__exit alm_exit(void);
+static int __init alm_init(void);
+static void __exit alm_exit(void);
 
 /* Private variables */
 static dev_t alm_devnum = 0;
@@ -40,11 +41,11 @@ static struct work_struct alm_work;
 static struct workqueue_struct *alm_workqueue;
 
 static struct file_operations fops = {
-	.owner 		= THIS_MODULE,
-	.read		= alm_read,
-	.write 		= alm_write,
-	.open 		= alm_open,
-	.release	= alm_release,
+		.owner = THIS_MODULE,
+		.read = alm_read,
+		.write = alm_write,
+		.open = alm_open,
+		.release = alm_release,
 };
 
 /* Function implementations */
@@ -63,53 +64,54 @@ static void workqueue_fn(struct work_struct *work)
 	tmp->data = alm_value;
 	INIT_LIST_HEAD(&tmp->list);
 	list_add_tail(&tmp->list, &alm_node);
-	
+
 	pr_info(DEV_INFO "Workqueue done\n");
 }
 
 /* Device file: Function implementations */
-static int alm_open(struct inode *inode, struct file *file) 
+static int alm_open(struct inode *inode, struct file *filp)
 {
 	pr_info(DEV_INFO "Driver open() called\n");
 	return 0;
 }
 
-static int alm_release(struct inode *inode, struct file *file)
+static int alm_release(struct inode *inode, struct file *filp)
 {
 	pr_info(DEV_INFO "Driver release() called\n");
 	return 0;
 }
 
-static ssize_t alm_read(struct file *filep, char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
 {
 	struct alm_list *tmp;
 	int count = 0;
 
 	pr_info(DEV_INFO "Driver read() called\n");
-	list_for_each_entry(tmp, &alm_node, list) { 
-		pr_info(DEV_INFO "Node %d, Data %d\n", count++, tmp->data);	
+	list_for_each_entry(tmp, &alm_node, list)
+	{
+		pr_info(DEV_INFO "Node %d, Data %d\n", count++, tmp->data);
 	}
 	pr_info(DEV_INFO "Driver read() exit\n");
 	return 0;
 }
 
-static ssize_t alm_write(struct file *filep, const char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
 {
-  char *tmp_buf;
+	char *tmp_buf;
 
 	pr_info(DEV_INFO "Driver write() called\n");
 
-  if ((tmp_buf = kmalloc(len, GFP_KERNEL)) == NULL)
-  {
-    pr_err(DEV_INFO "Can't allocate memory\n");
-    return -ENOMEM;
-  }
+	if ((tmp_buf = kmalloc(len, GFP_KERNEL)) == NULL)
+	{
+		pr_err(DEV_INFO "Can't allocate memory\n");
+		return -ENOMEM;
+	}
 
-	if (copy_from_user(tmp_buf, buf, len)) 
-  {
+	if (copy_from_user(tmp_buf, buf, len))
+	{
 		pr_err(DEV_INFO "Can't copy from user\n");
 		return -ENOMEM;
-	}	
+	}
 
 	sscanf(tmp_buf, "%d", &alm_value);
 	pr_info(DEV_INFO "Got value = %d\n", alm_value);
@@ -118,16 +120,16 @@ static ssize_t alm_write(struct file *filep, const char __user *buf, size_t len,
 }
 
 /* Driver: Function implementations */
-static int __init alm_init(void) 
+static int __init alm_init(void)
 {
 	/* Chardev: Allocate major number */
-	if (alloc_chrdev_region(&alm_devnum, 0, 1, MOD_NAME "_dev") < 0) 
+	if (alloc_chrdev_region(&alm_devnum, 0, 1, MOD_NAME "_dev") < 0)
 	{
 		pr_err(DEV_INFO "Can't allocate major number for device\n");
 		return -1;
 	}
 	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alm_devnum), MINOR(alm_devnum));
-	
+
 	/* Chardev: Create struct chardev */
 	cdev_init(&alm_cdev, &fops);
 
