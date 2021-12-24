@@ -7,11 +7,17 @@
 /* Private macros */
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
+#define USE_DYNAMIC 1
 
 /* Private variables */
 static dev_t devnum = 0;
-static struct class *dev_class;
+static struct class *alm_class;
+#if USE_DYNAMIC
+static struct cdev *dev_cdev = NULL;
+#else
 static struct cdev alm_cdev;
+static struct cdev *dev_cdev = &alm_cdev;
+#endif
 
 /* Function prototypes */
 static int __init alm_init(void);
@@ -65,24 +71,33 @@ static int __init alm_init(void)
 	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(devnum), MINOR(devnum));
 
 	/* Create struct chardev */
-	cdev_init(&alm_cdev, &fops);
+#if USE_DYNAMIC
+  if ((dev_cdev = cdev_alloc()) == NULL)
+  {
+    pr_err(DEV_INFO "Can't allocate cdev\n");
+    return -ENOMEM;
+  }
+  dev_cdev->ops = &fops;
+#else
+	cdev_init(dev_cdev, &fops);
+#endif
 
 	/* Add chardev to kernel */
-	if (cdev_add(&alm_cdev, devnum, 1) < 0)
+	if (cdev_add(dev_cdev, devnum, 1) < 0)
 	{
 		pr_err(DEV_INFO "Can't add chardev to the system\n");
 		return -1;
 	}
 
 	/* Create struct class */
-	if ((dev_class = class_create(THIS_MODULE, MOD_NAME "_class")) == NULL)
+	if ((alm_class = class_create(THIS_MODULE, MOD_NAME "_class")) == NULL)
 	{
 		pr_err(DEV_INFO "Can't create struct class for device\n");
 		goto r_class;
 	}
 
 	/* Create the device */
-	if (device_create(dev_class, NULL, devnum, NULL, MOD_NAME "_device") == NULL)
+	if (device_create(alm_class, NULL, devnum, NULL, MOD_NAME "_device") == NULL)
 	{
 		pr_err(DEV_INFO "Can't create the device\n");
 		goto r_device;
@@ -92,7 +107,7 @@ static int __init alm_init(void)
 	return 0;
 
 r_device:
-	class_destroy(dev_class);
+	class_destroy(alm_class);
 r_class:
 	unregister_chrdev_region(devnum, 1);
 
@@ -101,9 +116,9 @@ r_class:
 
 static void __exit alm_exit(void)
 {
-	device_destroy(dev_class, devnum);
-	class_destroy(dev_class);
-	cdev_del(&alm_cdev);
+	device_destroy(alm_class, devnum);
+	class_destroy(alm_class);
+	cdev_del(dev_cdev);
 	unregister_chrdev_region(devnum, 1);
 	printk(DEV_INFO "Driver removed\n");
 }
