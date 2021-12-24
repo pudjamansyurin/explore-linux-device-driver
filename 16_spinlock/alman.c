@@ -10,7 +10,7 @@
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
-#define SPIN_DYNAMIC 0
+#define USE_DYNAMIC 0
 #define THREAD_CNT 2
 
 /* Private types */
@@ -43,7 +43,7 @@ static struct file_operations fops = {
 		.release = alm_release,
 };
 
-#if SPIN_DYNAMIC
+#if USE_DYNAMIC
 static spinlock_t alm_spinlock;
 #else
 static DEFINE_SPINLOCK(alm_spinlock);
@@ -140,7 +140,7 @@ static int __init alm_init(void)
 	}
 
 	/* Spinlock */
-#if SPIN_DYNAMIC
+#if USE_DYNAMIC
 	spin_lock_init(&alm_spinlock);
 #endif
 

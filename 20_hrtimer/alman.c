@@ -23,6 +23,7 @@ struct alm_dev
 };
 
 static struct alm_dev alman = {0};
+static struct hrtimer alm_timer;
 static unsigned int count = 0;
 
 /* Module prototypes */
@@ -34,7 +35,7 @@ static int alm_release(struct inode *inode, struct file *filp);
 static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off);
 static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off);
 /* Timer prototypes */
-static void timer_fn(struct timer_list *data);
+static enum hrtimer_restart timer_fn(struct hrtimer *timer);
 
 static struct file_operations fops = {
 		.owner = THIS_MODULE,
@@ -44,22 +45,21 @@ static struct file_operations fops = {
 		.release = alm_release,
 };
 
-#if USE_DYNAMIC
-static struct timer_list alm_timer;
-#else
-static DEFINE_TIMER(alm_timer, timer_fn);
-#endif
-
 /* Function implementations */
 /*
 ** Callback is called when timer is expired
 */
-static void timer_fn(struct timer_list *data)
+static enum hrtimer_restart timer_fn(struct hrtimer *timer)
 {
+  ktime_t ktime;
+ 
   pr_info(DEV_INFO "Callback timer is called %d\n", count++);
   /* re-run the timer */
-  mod_timer(&alm_timer, jiffies + msecs_to_jiffies(TIM_INTERVAL_MS));
+  ktime = ktime_set(TIM_INTERVAL_S, TIM_INTERVAL_NS);
+  hrtimer_forward_now(&alm_timer, ktime);
+  return HRTIMER_RESTART;
 }
+
 /*
 ** This function is called on device file open 
 */
@@ -120,6 +120,8 @@ static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, 
 */
 static int __init alm_init(void)
 {
+  ktime_t ktime;
+
 	/* Allocate major number */
 	if (alloc_chrdev_region(&alman.devno, 0, 1, MOD_NAME "_dev") < 0)
 	{
@@ -159,12 +161,10 @@ static int __init alm_init(void)
 	}
 
   /* Timer setup */
-#if USE_DYNAMIC
-  timer_setup(&alm_timer, timer_fn, 0);
-#endif
-
-  /* Timer one-shot mode */
-  mod_timer(&alm_timer, jiffies + msecs_to_jiffies(TIM_INTERVAL_MS));
+  hrtimer_init(&alm_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+  alm_timer.function = &timer_fn;
+  ktime = ktime_set(TIM_INTERVAL_S, TIM_INTERVAL_NS);
+  hrtimer_start(&alm_timer, ktime, HRTIMER_MODE_REL);
 
 	printk(DEV_INFO "Driver inserted\n");
 	return 0;
@@ -185,7 +185,7 @@ r_major:
 */
 static void __exit alm_exit(void)
 {
-  del_timer(&alm_timer);
+  hrtimer_cancel(&alm_timer);
 
 	device_destroy(alman.class, alman.devno);
 	class_destroy(alman.class);

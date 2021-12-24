@@ -10,7 +10,7 @@
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
-#define MUTEX_DYNAMIC 0
+#define USE_DYNAMIC 0
 #define THREAD_CNT 2
 
 /* Private types */
@@ -21,14 +21,15 @@ struct thread_data
 	int index;
 };
 
+/* Driver: Function prototypes */
+static int __init alm_init(void);
+static void __exit alm_exit(void);
 /* Device file: Function prototypes */
 static int alm_open(struct inode *inode, struct file *filp);
 static int alm_release(struct inode *inode, struct file *filp);
 static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off);
 static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off);
-/* Driver: Function prototypes */
-static int __init alm_init(void);
-static void __exit alm_exit(void);
+
 
 /* Private variables */
 static dev_t alm_devnum = 0;
@@ -43,7 +44,7 @@ static struct file_operations fops = {
 		.release = alm_release,
 };
 
-#if MUTEX_DYNAMIC
+#if USE_DYNAMIC
 static struct mutex alm_mutex;
 #else
 static DEFINE_MUTEX(alm_mutex);
@@ -132,7 +133,7 @@ static int __init alm_init(void)
 	}
 
 	/* Mutex */
-#if MUTEX_DYNAMIC
+#if USE_DYNAMIC
 	mutex_init(&alm_mutex);
 #endif
 

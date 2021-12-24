@@ -9,7 +9,7 @@
 /* Private macros */
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
-#define WQ_DYNAMIC 1
+#define USE_DYNAMIC 1
 
 /* Device file: Function prototypes */
 static int alm_open(struct inode *inode, struct file *filp);
@@ -25,7 +25,7 @@ static dev_t alm_devnum = 0;
 static struct class *alm_class;
 static struct cdev alm_cdev;
 
-#if WQ_DYNAMIC
+#if USE_DYNAMIC
 static wait_queue_head_t alm_wq;
 #else
 static DECLARE_WAIT_QUEUE_HEAD(alm_wq);

@@ -10,8 +10,8 @@
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
-#define WQ_DEDICATED 1
-#define WQ_DYNAMIC 1
+#define USE_DEDICATED 1
+#define USE_DYNAMIC 1
 
 /* Workqueue: Function prototypes */
 static void workqueue_fn(struct work_struct *work);
@@ -29,13 +29,13 @@ static dev_t alm_devnum = 0;
 static struct class *alm_class;
 static struct cdev alm_cdev;
 
-#if WQ_DYNAMIC
+#if USE_DYNAMIC
 static struct work_struct alm_work;
 #else
 static DECLARE_WORK(alm_work, workqueue_fn);
 #endif
 
-#if WQ_DEDICATED
+#if USE_DEDICATED
 static struct workqueue_struct *alm_workqueue;
 #endif
 
@@ -73,7 +73,7 @@ static int alm_release(struct inode *inode, struct file *filp)
 static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
 {
 	pr_info(DEV_INFO "Driver read() called\n");
-#if WQ_DEDICATED
+#if USE_DEDICATED
 	queue_work(alm_workqueue, &alm_work);
 #else
 	schedule_work(&alm_work);
@@ -124,10 +124,10 @@ static int __init alm_init(void)
 	}
 
 	/* Work queue: Initialization */
-#if WQ_DYNAMIC
+#if USE_DYNAMIC
 	INIT_WORK(&alm_work, workqueue_fn);
 #endif
-#if WQ_DEDICATED
+#if USE_DEDICATED
 	alm_workqueue = create_workqueue(MOD_NAME "_workqueue");
 #endif
 
@@ -146,7 +146,7 @@ r_cdev:
 
 static void __exit alm_exit(void)
 {
-#if WQ_DEDICATED
+#if USE_DEDICATED
 	destroy_workqueue(alm_workqueue);
 #endif
 

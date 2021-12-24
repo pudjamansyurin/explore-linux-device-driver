@@ -10,7 +10,7 @@
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
-#define SPIN_DYNAMIC 1
+#define USE_DYNAMIC 1
 
 /* Threads: Function prototypes */
 static int thread_fn1(void *pv);
@@ -37,7 +37,7 @@ static struct file_operations fops = {
 		.release = alm_release,
 };
 
-#if SPIN_DYNAMIC
+#if USE_DYNAMIC
 static rwlock_t alm_rwlock;
 #else
 static DEFINE_RWLOCK(alm_rwlock);
@@ -134,7 +134,7 @@ static int __init alm_init(void)
 	}
 
 	/* Spinlock */
-#if SPIN_DYNAMIC
+#if USE_DYNAMIC
 	rwlock_init(&alm_rwlock);
 #endif
 

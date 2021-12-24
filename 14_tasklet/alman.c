@@ -10,7 +10,7 @@
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
-#define TASKLET_DYNAMIC 0
+#define USE_DYNAMIC 0
 
 /* Tasklet: Function prototypes */
 static void tasklet_fn(unsigned long arg);
@@ -36,7 +36,7 @@ static struct file_operations fops = {
 		.release = alm_release,
 };
 
-#if TASKLET_DYNAMIC
+#if USE_DYNAMIC
 static struct tasklet_struct alm_tasklet;
 #else
 static DECLARE_TASKLET_OLD(alm_tasklet, tasklet_fn);
@@ -113,7 +113,7 @@ static int __init alm_init(void)
 	}
 
 	/* Tasklet (atomic context) */
-#if TASKLET_DYNAMIC
+#if USE_DYNAMIC
 	tasklet_init(&alm_tasklet, tasklet_fn, 313);
 #endif
 
@@ -132,7 +132,7 @@ r_cdev:
 
 static void __exit alm_exit(void)
 {
-#if TASKLET_DYNAMIC
+#if USE_DYNAMIC
 	tasklet_kill(&alm_tasklet);
 #endif
 
