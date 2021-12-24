@@ -4,15 +4,10 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 // #include <linux/slab.h>
-#include <linux/ktime.h>
-#include <linux/hrtimer.h>
 
 /* Private macros */
-#define MOD_NAME "alman"
+#define MOD_NAME "alman2"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
-
-#define TIM_INTERVAL_NS (1000000000L)
-#define TIM_INTERVAL_S (4)
 
 /* Private variables */
 struct alm_dev
@@ -23,7 +18,6 @@ struct alm_dev
 };
 
 static struct alm_dev alman = {0};
-static unsigned int count = 0;
 
 /* Module prototypes */
 static int __init alm_init(void);
@@ -33,8 +27,8 @@ static int alm_open(struct inode *inode, struct file *filp);
 static int alm_release(struct inode *inode, struct file *filp);
 static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off);
 static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off);
-/* Timer prototypes */
-static void timer_fn(struct timer_list *data);
+/* Thread prototypes */
+void alm_shared_fn(void); // declared outside this file scope
 
 static struct file_operations fops = {
     .owner = THIS_MODULE,
@@ -44,22 +38,6 @@ static struct file_operations fops = {
     .release = alm_release,
 };
 
-#if USE_DYNAMIC
-static struct timer_list alm_timer;
-#else
-static DEFINE_TIMER(alm_timer, timer_fn);
-#endif
-
-/* Function implementations */
-/*
-** Callback is called when timer is expired
-*/
-static void timer_fn(struct timer_list *data)
-{
-  pr_info(DEV_INFO "Callback timer is called %d\n", count++);
-  /* re-run the timer */
-  mod_timer(&alm_timer, jiffies + msecs_to_jiffies(TIM_INTERVAL_MS));
-}
 /*
 ** This function is called on device file open 
 */
@@ -89,6 +67,7 @@ static int alm_release(struct inode *inode, struct file *filp)
 static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
 {
   pr_info(DEV_INFO "Driver read() called\n");
+  alm_shared_fn();
   return 0;
 }
 
@@ -135,6 +114,7 @@ static int __init alm_init(void)
     pr_err(DEV_INFO "Can't allocate cdev\n");
     goto r_major;
   }
+  alman.cdev->owner = THIS_MODULE;
   alman.cdev->ops = &fops;
 
   /* Add chardev to kernel */
@@ -158,17 +138,11 @@ static int __init alm_init(void)
     goto r_class;
   }
 
-  /* Timer setup */
-#if USE_DYNAMIC
-  timer_setup(&alm_timer, timer_fn, 0);
-#endif
-
-  /* Timer one-shot mode */
-  mod_timer(&alm_timer, jiffies + msecs_to_jiffies(TIM_INTERVAL_MS));
-
   printk(DEV_INFO "Driver inserted\n");
   return 0;
 
+// r_dev:
+//   device_destroy(alman.class, alman.devno);
 r_class:
   class_destroy(alman.class);
 r_cdev:
@@ -184,8 +158,6 @@ r_major:
 */
 static void __exit alm_exit(void)
 {
-  del_timer(&alm_timer);
-
   device_destroy(alman.class, alman.devno);
   class_destroy(alman.class);
   cdev_del(alman.cdev);
