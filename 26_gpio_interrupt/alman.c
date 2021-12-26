@@ -10,9 +10,16 @@
 #define MOD_NAME "alman"
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
-#define USE_HW_DEBOUNCE (0)
+#define USE_SW_DEBOUNCE (1)
 #define GPIO_LED (23)
 #define GPIO_BTN (24)
+
+#if (USE_SW_DEBOUNCE)
+#include <linux/jiffies.h>
+
+//extern unsigned long volatile jiffies;
+static unsigned long last_jiffies = 0;
+#endif
 
 /* Module prototypes */
 static int __init alm_init(void);
@@ -44,6 +51,13 @@ static struct miscdevice alm_miscdev = {
 static irqreturn_t gpio_button_handler(int irq, void *dev_id)
 {
 	static unsigned long flags = 0;
+
+#if USE_SW_DEBOUNCE
+	if ((jiffies - last_jiffies) < msecs_to_jiffies(50))
+	{
+		return IRQ_HANDLED;
+	}
+#endif
 
 	local_irq_save(flags);
 	gpio_set_value(GPIO_LED, !gpio_get_value(GPIO_LED));
@@ -148,7 +162,7 @@ static int __init alm_init(void)
 	if (gpio_is_valid(GPIO_LED) == false) 
 	{
 		pr_err(DEV_INFO "GPIO %d is invalid\n", GPIO_LED);
-		return -EINVAL;
+		goto r_misc;
 	}
 
 	/* GPIO: request to kernel */
@@ -172,7 +186,9 @@ static int __init alm_init(void)
 	gpio_export(GPIO_LED, false);
 
 	/* GPIO: set input debounce */
-#if USE_HW_DEBOUNCE
+#if USE_SW_DEBOUNCE
+
+#else
 	if (gpio_set_debounce(GPIO_BTN, 200) < 0)
 	{
 		pr_err(DEV_INFO "GPIO %d debounce failed\n", GPIO_BTN);
@@ -198,7 +214,8 @@ r_gpio_btn:
 	gpio_free(GPIO_BTN);
 r_gpio_led: 
 	gpio_free(GPIO_LED);
-
+r_misc:
+	misc_deregister(&alm_miscdev);
 	return -1;
 }
 
