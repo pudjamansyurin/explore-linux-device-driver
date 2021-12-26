@@ -6,6 +6,7 @@
 // #include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include <linux/seqlock.h>
 
 /* Private macros */
 #define MOD_NAME "alman"
@@ -15,23 +16,18 @@
 /* Private types */
 struct alm_dev
 {
-	atomic_t shared_var;
-	unsigned int bit_var;
+	unsigned long shared_var;
+	seqlock_t seqlock;
 
 	dev_t devno;
 	struct cdev *cdev;
 	struct class *class;
 };
 
-struct alm_thread
-{
-	struct task_struct *pthread;
-	char name[10];
-};
-
 /* Private variables */
 static struct alm_dev alm = {0};
-static struct alm_thread threads[MAX_THREAD] = {0};
+static struct task_struct *alm_thread1;
+static struct task_struct *alm_thread2;
 
 /* Module prototypes */
 static int __init alm_init(void);
@@ -42,7 +38,8 @@ static int alm_release(struct inode *inode, struct file *filp);
 static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off);
 static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off);
 /* Thread prototypes */
-static int thread_fn(void *pv);
+static int thread1_fn(void *pv);
+static int thread2_fn(void *pv);
 
 static struct file_operations fops = {
 		.owner = THIS_MODULE,
@@ -53,21 +50,34 @@ static struct file_operations fops = {
 };
 
 /* Function implementations */
-static int thread_fn(void *pv)
+static int thread1_fn(void *pv)
 {
-	unsigned int bit_val;
-	unsigned int shared_val;
-	char *name = (char *)pv;
+	while (!kthread_should_stop())
+	{
+		write_seqlock(&alm.seqlock);
+		alm.shared_var++;
+		pr_info(DEV_INFO "Thread1: write value = %lu\n", alm.shared_var);
+		write_sequnlock(&alm.seqlock);
+		msleep(1000);
+	}
+	return 0;
+}
+
+static int thread2_fn(void *pv)
+{
+	unsigned int seqno;
+	unsigned long value;
 
 	while (!kthread_should_stop())
 	{
-		atomic_inc(&alm.shared_var);
-		shared_val = atomic_read(&alm.shared_var);
-		bit_val = test_and_change_bit(1, (void *)&alm.bit_var);
-		pr_info("%s, value = %u, bit = %u\n", name, shared_val, bit_val);
+		do
+		{
+			seqno = read_seqbegin(&alm.seqlock);
+			value = alm.shared_var;
+		} while (read_seqretry(&alm.seqlock, seqno));
+		pr_info(DEV_INFO "Thread2: read value = %lu\n", value);
 		msleep(1000);
 	}
-
 	return 0;
 }
 
@@ -131,9 +141,6 @@ static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, 
 */
 static int __init alm_init(void)
 {
-	unsigned int thread_idx;
-	struct alm_thread *thread;
-
 	/* Allocate major number */
 	if (alloc_chrdev_region(&alm.devno, 0, 1, MOD_NAME "_dev") < 0)
 	{
@@ -174,17 +181,20 @@ static int __init alm_init(void)
 	}
 
 	/* Kernel thread: Create & Wakeup */
-	for (thread_idx = 0; thread_idx < MAX_THREAD; thread_idx++)
+	if ((alm_thread1 = kthread_run(thread1_fn, NULL, "thread1")) == NULL)
 	{
-		thread = &threads[thread_idx];
-
-		sprintf(thread->name, "thread-%d", thread_idx + 1);
-		if ((thread->pthread = kthread_run(thread_fn, thread->name, thread->name)) == NULL)
-		{
-			pr_info(DEV_INFO "Can't create %s\n", thread->name);
-			goto r_dev;
-		}
+		pr_info(DEV_INFO "Can't create thread1\n");
+		goto r_dev;
 	}
+
+	if ((alm_thread2 = kthread_run(thread2_fn, NULL, "thread2")) == NULL)
+	{
+		pr_info(DEV_INFO "Can't create thread2\n");
+		goto r_dev;
+	}
+
+	/* Seqlock: Initiate */
+	seqlock_init(&alm.seqlock);
 
 	printk(DEV_INFO "Driver inserted\n");
 	return 0;
@@ -206,12 +216,8 @@ r_major:
 */
 static void __exit alm_exit(void)
 {
-	unsigned int thread_idx;
-
-	for (thread_idx = 0; thread_idx < MAX_THREAD; thread_idx++)
-	{
-		kthread_stop(threads[thread_idx].pthread);
-	}
+	kthread_stop(alm_thread1);
+	kthread_stop(alm_thread2);
 
 	device_destroy(alm.class, alm.devno);
 	class_destroy(alm.class);
