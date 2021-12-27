@@ -16,8 +16,10 @@ static void __exit alm_exit(void);
 /* Cdev prototypes */
 static int alm_open(struct inode *inode, struct file *filp);
 static int alm_release(struct inode *inode, struct file *filp);
-static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off);
-static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off);
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len,
+			loff_t *off);
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len,
+			 loff_t *off);
 
 static struct file_operations fops = {
 	.owner = THIS_MODULE,
@@ -56,15 +58,15 @@ static int alm_release(struct inode *inode, struct file *filp)
 /*
 ** This function is called on device file read 
 */
-static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len,
+			loff_t *off)
 {
 	bool led_state;
 
 	pr_info(DEV_INFO "Driver read() called\n");
-	
+
 	led_state = gpio_get_value(GPIO_LED);
-	if (copy_to_user(buf, &led_state, 1))
-	{
+	if (copy_to_user(buf, &led_state, 1)) {
 		pr_err(DEV_INFO "Failed copy to user\n");
 		return -EFAULT;
 	}
@@ -76,7 +78,8 @@ static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t 
 /*
 ** This function is called on device file write 
 */
-static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len,
+			 loff_t *off)
 {
 	int err = 0;
 	uint8_t *buffer;
@@ -84,26 +87,23 @@ static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, 
 
 	pr_info(DEV_INFO "Driver write() called\n");
 
-	if ((buffer = kmalloc(len, GFP_KERNEL)) == NULL)
-	{
+	if ((buffer = kmalloc(len, GFP_KERNEL)) == NULL) {
 		return -ENOMEM;
 	}
 
-	if (copy_from_user(buffer, buf, len)) 
-	{	
+	if (copy_from_user(buffer, buf, len)) {
 		err = -EFAULT;
 		goto r_kmalloc;
 	}
 
 	/* Do something with kernel buffer */
-	if (kstrtobool(buffer, &led_state) < 0) 
-	{
+	if (kstrtobool(buffer, &led_state) < 0) {
 		pr_err(DEV_INFO "Invalid command state\n");
 		err = -EFAULT;
 		goto r_kmalloc;
-	}	
+	}
 
-	gpio_set_value(GPIO_LED, led_state); 
+	gpio_set_value(GPIO_LED, led_state);
 
 	kfree(buffer);
 	return len;
@@ -120,22 +120,19 @@ static int __init alm_init(void)
 {
 	int err;
 
-	if ((err = misc_register(&alm_miscdev)))
-	{
+	if ((err = misc_register(&alm_miscdev))) {
 		pr_err(DEV_INFO "Register failed: %d\n", err);
 		return err;
 	}
 
 	/* GPIO: check is valid */
-	if (gpio_is_valid(GPIO_LED) == false) 
-	{
+	if (gpio_is_valid(GPIO_LED) == false) {
 		pr_err(DEV_INFO "GPIO %d is invalid\n", GPIO_LED);
 		return -EINVAL;
 	}
 
 	/* GPIO: request to kernel */
-	if (gpio_request(GPIO_LED, "GPIO_LED") < 0)
-	{
+	if (gpio_request(GPIO_LED, "GPIO_LED") < 0) {
 		pr_err(DEV_INFO "GPIO %d failed request\n", GPIO_LED);
 		goto r_gpio;
 	}
@@ -152,7 +149,7 @@ static int __init alm_init(void)
 r_gpio:
 	gpio_free(GPIO_LED);
 
-	return -1;	
+	return -1;
 }
 
 /*

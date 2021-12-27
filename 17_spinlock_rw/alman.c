@@ -18,8 +18,10 @@ static int thread_fn2(void *pv);
 /* Device file: Function prototypes */
 static int alm_open(struct inode *inode, struct file *filp);
 static int alm_release(struct inode *inode, struct file *filp);
-static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off);
-static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off);
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len,
+			loff_t *off);
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len,
+			 loff_t *off);
 /* Driver: Function prototypes */
 static int __init alm_init(void);
 static void __exit alm_exit(void);
@@ -30,11 +32,11 @@ static struct class *alm_class;
 static struct cdev alm_cdev;
 
 static struct file_operations fops = {
-		.owner = THIS_MODULE,
-		.read = alm_read,
-		.write = alm_write,
-		.open = alm_open,
-		.release = alm_release,
+	.owner = THIS_MODULE,
+	.read = alm_read,
+	.write = alm_write,
+	.open = alm_open,
+	.release = alm_release,
 };
 
 #if USE_DYNAMIC
@@ -50,8 +52,7 @@ static struct task_struct *alm_thread2;
 /* Thread: Function */
 int thread_fn1(void *pv)
 {
-	while (!kthread_should_stop())
-	{
+	while (!kthread_should_stop()) {
 		write_lock(&alm_rwlock);
 		shared_var++;
 		pr_info("Producer: Write value %lu\n", shared_var);
@@ -63,8 +64,7 @@ int thread_fn1(void *pv)
 
 int thread_fn2(void *pv)
 {
-	while (!kthread_should_stop())
-	{
+	while (!kthread_should_stop()) {
 		read_lock(&alm_rwlock);
 		pr_info("Consumer: Read value %lu\n", shared_var);
 		read_unlock(&alm_rwlock);
@@ -86,13 +86,15 @@ static int alm_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len,
+			loff_t *off)
 {
 	pr_info(DEV_INFO "Driver read() called\n");
 	return 0;
 }
 
-static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len,
+			 loff_t *off)
 {
 	pr_info(DEV_INFO "Driver write() called\n");
 	return len;
@@ -102,33 +104,32 @@ static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, 
 static int __init alm_init(void)
 {
 	/* Device Number: Allocate major number */
-	if (alloc_chrdev_region(&alm_devnum, 0, 1, MOD_NAME "_dev") < 0)
-	{
+	if (alloc_chrdev_region(&alm_devnum, 0, 1, MOD_NAME "_dev") < 0) {
 		pr_err(DEV_INFO "Can't allocate major number for device\n");
 		return -1;
 	}
-	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alm_devnum), MINOR(alm_devnum));
+	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alm_devnum),
+	       MINOR(alm_devnum));
 
 	/* Chardev: Create struct chardev */
 	cdev_init(&alm_cdev, &fops);
 
 	/* Chardev: Add chardev to kernel */
-	if (cdev_add(&alm_cdev, alm_devnum, 1) < 0)
-	{
+	if (cdev_add(&alm_cdev, alm_devnum, 1) < 0) {
 		pr_err(DEV_INFO "Can't add chardev to the system\n");
 		goto r_cdev;
 	}
 
 	/* Device file: Create struct class */
-	if ((alm_class = class_create(THIS_MODULE, MOD_NAME "_class")) == NULL)
-	{
+	if ((alm_class = class_create(THIS_MODULE, MOD_NAME "_class")) ==
+	    NULL) {
 		pr_err(DEV_INFO "Can't create struct class for device\n");
 		goto r_class;
 	}
 
 	/* Device file: Create the device */
-	if (device_create(alm_class, NULL, alm_devnum, NULL, MOD_NAME "_device") == NULL)
-	{
+	if (device_create(alm_class, NULL, alm_devnum, NULL,
+			  MOD_NAME "_device") == NULL) {
 		pr_err(DEV_INFO "Can't create the device\n");
 		goto r_device;
 	}
@@ -140,24 +141,18 @@ static int __init alm_init(void)
 
 	/* Creating Thread 1 */
 	alm_thread1 = kthread_run(thread_fn1, NULL, "Thread1");
-	if (alm_thread1)
-	{
+	if (alm_thread1) {
 		pr_err("Kthread1 Created Successfully...\n");
-	}
-	else
-	{
+	} else {
 		pr_err("Cannot create kthread1\n");
 		goto r_thread;
 	}
 
 	/* Creating Thread 2 */
 	alm_thread2 = kthread_run(thread_fn2, NULL, "Thread2");
-	if (alm_thread2)
-	{
+	if (alm_thread2) {
 		pr_err("Kthread2 Created Successfully...\n");
-	}
-	else
-	{
+	} else {
 		pr_err("Cannot create kthread2\n");
 		goto r_thread;
 	}

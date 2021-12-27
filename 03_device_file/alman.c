@@ -11,30 +11,30 @@ static dev_t devnum = 0;
 static struct class *dev_class;
 
 /* Functions declaration */
-static int 	__init alm_init(void); 
-static void 	__exit alm_exit(void);
+static int __init alm_init(void);
+static void __exit alm_exit(void);
 
 /* Functions implementation */
-static int __init alm_init(void) 
+static int __init alm_init(void)
 {
 	/* Allocate major number */
-	if ((alloc_chrdev_region(&devnum, 0, 1, MOD_NAME)) < 0) 
-	{
+	if ((alloc_chrdev_region(&devnum, 0, 1, MOD_NAME)) < 0) {
 		pr_err(DEV_INFO "Can't allocate major number for device\n");
 		return -1;
 	}
-	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(devnum), MINOR(devnum));
-	
+	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(devnum),
+	       MINOR(devnum));
+
 	/* Create struct class */
-	if((dev_class = class_create(THIS_MODULE, MOD_NAME "_class")) == NULL)
-	{
+	if ((dev_class = class_create(THIS_MODULE, MOD_NAME "_class")) ==
+	    NULL) {
 		pr_err(DEV_INFO "Can't create struct class for device\n");
 		goto r_class;
 	}
 
 	/* Create the device */
-	if (device_create(dev_class, NULL, devnum, NULL, MOD_NAME "_device") == NULL)
-	{
+	if (device_create(dev_class, NULL, devnum, NULL, MOD_NAME "_device") ==
+	    NULL) {
 		pr_err(DEV_INFO "Can't create the device\n");
 		goto r_device;
 	}
@@ -45,9 +45,8 @@ static int __init alm_init(void)
 r_device:
 	class_destroy(dev_class);
 r_class:
-	unregister_chrdev_region(devnum,1);
+	unregister_chrdev_region(devnum, 1);
 	return -1;
-
 }
 
 static void __exit alm_exit(void)

@@ -13,22 +13,24 @@ static void __exit alm_exit(void);
 /* Cdev prototypes */
 static int alm_open(struct inode *inode, struct file *filp);
 static int alm_release(struct inode *inode, struct file *filp);
-static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off);
-static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off);
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len,
+			loff_t *off);
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len,
+			 loff_t *off);
 
 static struct file_operations fops = {
-		.owner = THIS_MODULE,
-		.read = alm_read,
-		.write = alm_write,
-		.open = alm_open,
-		.release = alm_release,
-		.llseek = no_llseek,
+	.owner = THIS_MODULE,
+	.read = alm_read,
+	.write = alm_write,
+	.open = alm_open,
+	.release = alm_release,
+	.llseek = no_llseek,
 };
 
 static struct miscdevice alm_miscdev = {
-		.minor = MISC_DYNAMIC_MINOR,
-		.name = MOD_NAME "_misc",
-		.fops = &fops,
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = MOD_NAME "_misc",
+	.fops = &fops,
 };
 
 /* Function implementations */
@@ -53,7 +55,8 @@ static int alm_release(struct inode *inode, struct file *filp)
 /*
 ** This function is called on device file read 
 */
-static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len,
+			loff_t *off)
 {
 	pr_info(DEV_INFO "Driver read() called\n");
 	return 0;
@@ -62,7 +65,8 @@ static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t 
 /*
 ** This function is called on device file write 
 */
-static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len,
+			 loff_t *off)
 {
 	// uint8_t *buffer;
 
@@ -86,8 +90,7 @@ static int __init alm_init(void)
 {
 	int err;
 
-	if ((err = misc_register(&alm_miscdev)))
-	{
+	if ((err = misc_register(&alm_miscdev))) {
 		pr_err(DEV_INFO "Register failed: %d\n", err);
 		return err;
 	}

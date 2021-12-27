@@ -1,6 +1,6 @@
 #include <linux/module.h>
 
-static int __init alm_init(void) 
+static int __init alm_init(void)
 {
 	printk(KERN_INFO "Hello World\n");
 	return 0;

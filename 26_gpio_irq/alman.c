@@ -26,8 +26,10 @@ static void __exit alm_exit(void);
 /* Cdev prototypes */
 static int alm_open(struct inode *inode, struct file *filp);
 static int alm_release(struct inode *inode, struct file *filp);
-static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off);
-static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off);
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len,
+			loff_t *off);
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len,
+			 loff_t *off);
 
 static struct file_operations fops = {
 	.owner = THIS_MODULE,
@@ -52,8 +54,7 @@ static irqreturn_t gpio_button_handler(int irq, void *dev_id)
 	unsigned long flags;
 
 #if USE_SW_DEBOUNCE
-	if ((jiffies - last_jiffies) < msecs_to_jiffies(DEBOUNCE_MS))
-	{
+	if ((jiffies - last_jiffies) < msecs_to_jiffies(DEBOUNCE_MS)) {
 		return IRQ_HANDLED;
 	}
 #endif
@@ -62,7 +63,7 @@ static irqreturn_t gpio_button_handler(int irq, void *dev_id)
 	gpio_set_value(GPIO_LED, gpio_get_value(GPIO_BTN));
 	pr_info(DEV_INFO "Button interrupt handler called\n");
 	local_irq_restore(flags);
-	
+
 	return IRQ_HANDLED;
 }
 
@@ -87,15 +88,15 @@ static int alm_release(struct inode *inode, struct file *filp)
 /*
 ** This function is called on device file read 
 */
-static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len,
+			loff_t *off)
 {
 	bool led_state;
 
 	pr_info(DEV_INFO "Driver read() called\n");
-	
+
 	led_state = gpio_get_value(GPIO_LED);
-	if (copy_to_user(buf, &led_state, 1))
-	{
+	if (copy_to_user(buf, &led_state, 1)) {
 		pr_err(DEV_INFO "Failed copy to user\n");
 		return -EFAULT;
 	}
@@ -107,7 +108,8 @@ static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t 
 /*
 ** This function is called on device file write 
 */
-static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len,
+			 loff_t *off)
 {
 	int err = 0;
 	uint8_t *buffer;
@@ -115,26 +117,23 @@ static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, 
 
 	pr_info(DEV_INFO "Driver write() called\n");
 
-	if ((buffer = kmalloc(len, GFP_KERNEL)) == NULL)
-	{
+	if ((buffer = kmalloc(len, GFP_KERNEL)) == NULL) {
 		return -ENOMEM;
 	}
 
-	if (copy_from_user(buffer, buf, len)) 
-	{	
+	if (copy_from_user(buffer, buf, len)) {
 		err = -EFAULT;
 		goto r_kmalloc;
 	}
 
 	/* Do something with kernel buffer */
-	if (kstrtobool(buffer, &led_state) < 0) 
-	{
+	if (kstrtobool(buffer, &led_state) < 0) {
 		pr_err(DEV_INFO "Invalid command state\n");
 		err = -EFAULT;
 		goto r_kmalloc;
-	}	
+	}
 
-	gpio_set_value(GPIO_LED, led_state); 
+	gpio_set_value(GPIO_LED, led_state);
 
 	kfree(buffer);
 	return len;
@@ -151,28 +150,24 @@ static int __init alm_init(void)
 {
 	int err;
 
-	if ((err = misc_register(&alm_miscdev)))
-	{
+	if ((err = misc_register(&alm_miscdev))) {
 		pr_err(DEV_INFO "Register failed: %d\n", err);
 		return err;
 	}
 
 	/* GPIO: check is valid */
-	if (gpio_is_valid(GPIO_LED) == false) 
-	{
+	if (gpio_is_valid(GPIO_LED) == false) {
 		pr_err(DEV_INFO "GPIO %d is invalid\n", GPIO_LED);
 		goto r_misc;
 	}
 
 	/* GPIO: request to kernel */
-	if (gpio_request(GPIO_LED, "GPIO_LED") < 0)
-	{
+	if (gpio_request(GPIO_LED, "GPIO_LED") < 0) {
 		pr_err(DEV_INFO "GPIO %d failed request\n", GPIO_LED);
 		goto r_gpio_led;
 	}
-	
-	if (gpio_request(GPIO_BTN, "GPIO_BTN") < 0)
-	{
+
+	if (gpio_request(GPIO_BTN, "GPIO_BTN") < 0) {
 		pr_err(DEV_INFO "GPIO %d failed request\n", GPIO_BTN);
 		goto r_gpio_btn;
 	}
@@ -188,30 +183,25 @@ static int __init alm_init(void)
 #if USE_SW_DEBOUNCE
 
 #else
-	if (gpio_set_debounce(GPIO_BTN, 200) < 0)
-	{
+	if (gpio_set_debounce(GPIO_BTN, 200) < 0) {
 		pr_err(DEV_INFO "GPIO %d debounce failed\n", GPIO_BTN);
 		goto r_gpio_btn;
 	}
 #endif
 
 	/* IRQ: setup for GPIO_BTN */
-	if (request_irq(gpio_to_irq(GPIO_BTN),
-			gpio_button_handler,
-			IRQF_TRIGGER_RISING,
-			MOD_NAME "_dev",
-			NULL))
-	{
+	if (request_irq(gpio_to_irq(GPIO_BTN), gpio_button_handler,
+			IRQF_TRIGGER_RISING, MOD_NAME "_dev", NULL)) {
 		pr_err(DEV_INFO "Can't regiest IRQ for gpio\n");
 		goto r_gpio_btn;
 	}
 
 	printk(DEV_INFO "Driver inserted\n");
 	return 0;
-	
+
 r_gpio_btn:
 	gpio_free(GPIO_BTN);
-r_gpio_led: 
+r_gpio_led:
 	gpio_free(GPIO_LED);
 r_misc:
 	misc_deregister(&alm_miscdev);

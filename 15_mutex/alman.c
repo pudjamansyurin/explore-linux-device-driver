@@ -14,8 +14,7 @@
 #define THREAD_CNT 2
 
 /* Private types */
-struct thread_data
-{
+struct thread_data {
 	struct task_struct *thread;
 	char name[10];
 	int index;
@@ -27,9 +26,10 @@ static void __exit alm_exit(void);
 /* Device file: Function prototypes */
 static int alm_open(struct inode *inode, struct file *filp);
 static int alm_release(struct inode *inode, struct file *filp);
-static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off);
-static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off);
-
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len,
+			loff_t *off);
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len,
+			 loff_t *off);
 
 /* Private variables */
 static dev_t alm_devnum = 0;
@@ -37,11 +37,11 @@ static struct class *alm_class;
 static struct cdev alm_cdev;
 
 static struct file_operations fops = {
-		.owner = THIS_MODULE,
-		.read = alm_read,
-		.write = alm_write,
-		.open = alm_open,
-		.release = alm_release,
+	.owner = THIS_MODULE,
+	.read = alm_read,
+	.write = alm_write,
+	.open = alm_open,
+	.release = alm_release,
 };
 
 #if USE_DYNAMIC
@@ -58,11 +58,11 @@ static int fn_thread(void *pv)
 {
 	int idx = *(int *)pv;
 
-	while (!kthread_should_stop())
-	{
+	while (!kthread_should_stop()) {
 		pr_info(DEV_INFO "Thread %d is running\n", idx);
 		mutex_lock(&alm_mutex);
-		pr_info(DEV_INFO "Thread %d, shared_var = %ld\n", idx, ++shared_var);
+		pr_info(DEV_INFO "Thread %d, shared_var = %ld\n", idx,
+			++shared_var);
 		mutex_unlock(&alm_mutex);
 		msleep(1000);
 	}
@@ -83,13 +83,15 @@ static int alm_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static ssize_t alm_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_read(struct file *filp, char __user *buf, size_t len,
+			loff_t *off)
 {
 	pr_info(DEV_INFO "Driver read() called\n");
 	return 0;
 }
 
-static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
+static ssize_t alm_write(struct file *filp, const char __user *buf, size_t len,
+			 loff_t *off)
 {
 	pr_info(DEV_INFO "Driver write() called\n");
 	return len;
@@ -101,33 +103,32 @@ static int __init alm_init(void)
 	int i;
 
 	/* Device Number: Allocate major number */
-	if (alloc_chrdev_region(&alm_devnum, 0, 1, MOD_NAME "_dev") < 0)
-	{
+	if (alloc_chrdev_region(&alm_devnum, 0, 1, MOD_NAME "_dev") < 0) {
 		pr_err(DEV_INFO "Can't allocate major number for device\n");
 		return -1;
 	}
-	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alm_devnum), MINOR(alm_devnum));
+	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(alm_devnum),
+	       MINOR(alm_devnum));
 
 	/* Chardev: Create struct chardev */
 	cdev_init(&alm_cdev, &fops);
 
 	/* Chardev: Add chardev to kernel */
-	if (cdev_add(&alm_cdev, alm_devnum, 1) < 0)
-	{
+	if (cdev_add(&alm_cdev, alm_devnum, 1) < 0) {
 		pr_err(DEV_INFO "Can't add chardev to the system\n");
 		goto r_cdev;
 	}
 
 	/* Device file: Create struct class */
-	if ((alm_class = class_create(THIS_MODULE, MOD_NAME "_class")) == NULL)
-	{
+	if ((alm_class = class_create(THIS_MODULE, MOD_NAME "_class")) ==
+	    NULL) {
 		pr_err(DEV_INFO "Can't create struct class for device\n");
 		goto r_class;
 	}
 
 	/* Device file: Create the device */
-	if (device_create(alm_class, NULL, alm_devnum, NULL, MOD_NAME "_device") == NULL)
-	{
+	if (device_create(alm_class, NULL, alm_devnum, NULL,
+			  MOD_NAME "_device") == NULL) {
 		pr_err(DEV_INFO "Can't create the device\n");
 		goto r_device;
 	}
@@ -138,15 +139,14 @@ static int __init alm_init(void)
 #endif
 
 	/* Kernel thread: Create & Wakeup */
-	for (i = 0; i < THREAD_CNT; i++)
-	{
+	for (i = 0; i < THREAD_CNT; i++) {
 		struct thread_data *th = &thread_list[i];
 
 		th->index = i;
 		sprintf(th->name, "thread_%d", th->index);
 
-		if ((th->thread = kthread_run(fn_thread, &th->index, th->name)) == NULL)
-		{
+		if ((th->thread = kthread_run(fn_thread, &th->index,
+					      th->name)) == NULL) {
 			pr_info(DEV_INFO "Can't create thread %d\n", i);
 			goto r_thread;
 		}
@@ -171,8 +171,7 @@ static void __exit alm_exit(void)
 {
 	int i;
 
-	for (i = 0; i < THREAD_CNT; i++)
-	{
+	for (i = 0; i < THREAD_CNT; i++) {
 		struct thread_data *th = &thread_list[i];
 
 		kthread_stop(th->thread);

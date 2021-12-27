@@ -9,18 +9,18 @@
 static dev_t devnum = 0;
 
 /* Functions declaration */
-static int __init alm_init(void); 
+static int __init alm_init(void);
 static void __exit alm_exit(void);
 
 /* Functions implementation */
-static int __init alm_init(void) 
+static int __init alm_init(void)
 {
-	if(alloc_chrdev_region(&devnum, 0, 1, "almanshurin_dev") < 0)
-	{
-		printk (DEV_INFO "Can't allocate major number for device 1\n");
+	if (alloc_chrdev_region(&devnum, 0, 1, "almanshurin_dev") < 0) {
+		printk(DEV_INFO "Can't allocate major number for device 1\n");
 		return -1;
 	}
-	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(devnum), MINOR(devnum));
+	printk(DEV_INFO "Major = %d, Minor = %d\n", MAJOR(devnum),
+	       MINOR(devnum));
 	printk(DEV_INFO "Driver inserted\n");
 	return 0;
 }
