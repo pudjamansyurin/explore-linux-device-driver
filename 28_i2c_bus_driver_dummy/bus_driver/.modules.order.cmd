@@ -1,1 +1,0 @@
-cmd_/home/pi/linux-device-driver/28_i2c_bus_driver_dummy/bus_driver/modules.order := {   echo /home/pi/linux-device-driver/28_i2c_bus_driver_dummy/bus_driver/alman_bus.ko; :; } | awk '!x[$$0]++' - > /home/pi/linux-device-driver/28_i2c_bus_driver_dummy/bus_driver/modules.order

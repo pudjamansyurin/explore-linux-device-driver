@@ -1,1 +1,0 @@
-cmd_/home/pi/linux-device-driver/28_i2c_bus_driver_dummy/client_driver/alman_client.mod := { echo  /home/pi/linux-device-driver/28_i2c_bus_driver_dummy/client_driver/alman_client.o;  echo; } > /home/pi/linux-device-driver/28_i2c_bus_driver_dummy/client_driver/alman_client.mod

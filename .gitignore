@@ -1,7 +1,7 @@
-*/*.o
-*/*.ko
-*/*.cmd
-*/*.mod
-*/*.mod.*
-*/modules.order
-*/Module.symvers
+**/*.o
+**/*.ko
+**/*.cmd
+**/*.mod
+**/*.mod.*
+**/modules.order
+**/Module.symvers
