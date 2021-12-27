@@ -11,13 +11,12 @@
 #define DEV_INFO KERN_INFO MOD_NAME ": "
 
 #define USE_SW_DEBOUNCE (1)
+#define DEBOUNCE_MS (250)
 #define GPIO_LED (23)
 #define GPIO_BTN (24)
 
 #if (USE_SW_DEBOUNCE)
 #include <linux/jiffies.h>
-
-//extern unsigned long volatile jiffies;
 static unsigned long last_jiffies = 0;
 #endif
 
@@ -50,17 +49,17 @@ static struct miscdevice alm_miscdev = {
  */
 static irqreturn_t gpio_button_handler(int irq, void *dev_id)
 {
-	static unsigned long flags = 0;
+	unsigned long flags;
 
 #if USE_SW_DEBOUNCE
-	if ((jiffies - last_jiffies) < msecs_to_jiffies(50))
+	if ((jiffies - last_jiffies) < msecs_to_jiffies(DEBOUNCE_MS))
 	{
 		return IRQ_HANDLED;
 	}
 #endif
 
 	local_irq_save(flags);
-	gpio_set_value(GPIO_LED, !gpio_get_value(GPIO_LED));
+	gpio_set_value(GPIO_LED, gpio_get_value(GPIO_BTN));
 	pr_info(DEV_INFO "Button interrupt handler called\n");
 	local_irq_restore(flags);
 	
