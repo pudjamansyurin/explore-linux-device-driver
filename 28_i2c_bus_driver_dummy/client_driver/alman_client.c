@@ -1,13 +1,12 @@
-#include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 
 /* Private macros */
-#define MOD_NAME "alman"
-#define DEV_INFO KERN_INFO MOD_NAME ": "
+#define MOD_NAME "alman-client"
+#define MOD_INFO MOD_NAME ": "
 
-#define I2C_BUS_NUMBER (1)
+#define I2C_BUS_NUMBER (11)	/* check in /sys/bus/i2c/ directory */
 #define I2C_SLAVE_NAME ("OLED_SSD1306")
 #define I2C_SLAVE_ADDR (0x3C)
 
@@ -22,24 +21,30 @@ struct alm_dev {
 
 static struct alm_dev alm = {0};
 
-/* @brief: i2c transmit wrapper
- * @return: error code
+/**
+ * i2c_write - low level i2c transmit
+ *
+ * Return: errno
  */
 static int i2c_write(unsigned char *buf, unsigned int len) {
   int ret = i2c_master_send(alm.client, buf, len);
   return ret;
 }
 
-/* @brief: i2c receive wrapper
- * @return: error code
+/**
+ * i2c_read - low level i2c receive
+ *
+ * Return: errno
  */
 static int i2c_read(unsigned char *buf, unsigned int len) {
   int ret = i2c_master_recv(alm.client, buf, len);
   return ret;
 }
 
-/* @brief: ssd1306 write data
- * @return: error code
+/**
+ * ssd1306_write_data - write data to ssd1306
+ *
+ * Return: errno
  */
 static int ssd1306_write_data(unsigned char payload) {
   unsigned char buf[2] = {
@@ -50,8 +55,10 @@ static int ssd1306_write_data(unsigned char payload) {
   return i2c_write(buf, 2);
 }
 
-/* @brief: ssd1306 write command
- * @return: error code
+/**
+ * ssd1306_write_cmd - write command to ssd1306
+ *
+ * Return: errno
  */
 static int ssd1306_write_cmd(unsigned char payload) {
   unsigned char buf[2] = {
@@ -62,16 +69,17 @@ static int ssd1306_write_cmd(unsigned char payload) {
   return i2c_write(buf, 2);
 }
 
-/* @brief: ssd1306 initialization sequence
- * @return: none
+/**
+ * ssd13056_init - initialization sequence for ssd1306
+ *
+ * Return: none
  */
 static void ssd1306_init(void) {
   ssd1306_write_cmd(0xAE); // Entire Display OFF
 
+  ssd1306_write_cmd(0xD5); // Set Clock Divide Ratio and Osc Freq
   ssd1306_write_cmd(
-      0xD5); // Set Display Clock Divide Ratio and Oscillator Frequency
-  ssd1306_write_cmd(
-      0x80); // Default Setting for Display Clock Divide Ratio and Oscillator
+      0x80); // Default Setting for Clock Divide Ratio and Osc Freq
 
   ssd1306_write_cmd(0xA8); // Set Multiplex Ratio
   ssd1306_write_cmd(0x3F); // 64 COM lines
@@ -112,9 +120,11 @@ static void ssd1306_init(void) {
   ssd1306_write_cmd(0xAF); // Display ON in normal mode
 }
 
-/* @brief: fill all display with data
- * @args : byte data to be written
- * @return: none
+/**
+ * ssd1306_fill - fill display of ssd1306 with specific data
+ * @payload: byte data to be written
+ *
+ * Return: none
  */
 static void ssd1306_fill(unsigned char payload) {
   unsigned int i;
@@ -124,25 +134,27 @@ static void ssd1306_fill(unsigned char payload) {
   }
 }
 
-/* @brief: probe will be called when driver is loaded at first time
+/**
+ * alm_oled_probe - called when driver is loaded at first time
  */
 static int alm_oled_probe(struct i2c_client *client,
                           const struct i2c_device_id *id) {
   ssd1306_init();
-  ssd1306_fill(0xff);
-  pr_info(DEV_INFO "ssd1306 was probed\n");
+  // ssd1306_fill(0xff);
+  pr_info(MOD_INFO "ssd1306 was probed\n");
   return 0;
 }
 
-/* @brief: remove will be called when driver is unloaded at last time
+/**
+ * alm_oled_remove - called when driver is unloaded at last time
  */
 static int alm_oled_remove(struct i2c_client *client) {
-  ssd1306_fill(0x00);
-  pr_info(DEV_INFO "ssd1306 was removed\n");
+  // ssd1306_fill(0x00);
+  pr_info(MOD_INFO "ssd1306 was removed\n");
   return 0;
 }
 
-/* Slave device id structure */
+/* I2C device id (slave) structure */
 static const struct i2c_device_id alm_oled_id[] = {
     {I2C_SLAVE_NAME, 0},
     {},
@@ -166,22 +178,24 @@ static struct i2c_board_info alm_oled_board = {
     I2C_BOARD_INFO(I2C_SLAVE_NAME, I2C_SLAVE_ADDR),
 };
 
-/* Module init callback */
+/**
+ * alm_init - module init func
+ */
 static int __init alm_init(void) {
   if ((alm.adapter = i2c_get_adapter(I2C_BUS_NUMBER)) == NULL) {
-    pr_err(DEV_INFO "Can't get adapter bus %d\n", I2C_BUS_NUMBER);
+    pr_err(MOD_INFO "Can't get adapter bus %d\n", I2C_BUS_NUMBER);
     return -1;
   }
 
   if ((alm.client = i2c_new_client_device(alm.adapter, &alm_oled_board)) ==
       NULL) {
-    pr_err(DEV_INFO "Can't add board info\n");
+    pr_err(MOD_INFO "Can't add board info\n");
     goto r_adapter;
   }
 
   i2c_add_driver(&alm_oled_driver);
 
-  pr_info(DEV_INFO "Driver added\n");
+  pr_info(MOD_INFO "Driver added\n");
   return 0;
 
 r_adapter:
@@ -190,17 +204,18 @@ r_adapter:
   return -1;
 }
 
-/* Module exit callback */
+/**
+ * alm_exit - module exit func
+ */
 static void __exit alm_exit(void) {
   i2c_del_driver(&alm_oled_driver);
   i2c_unregister_device(alm.client);
-  pr_info(DEV_INFO "Driver removed\n");
+  pr_info(MOD_INFO "Driver removed\n");
 }
 
 module_init(alm_init);
 module_exit(alm_exit);
 
-/* Module description */
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pudja Mansyurin");
 MODULE_DESCRIPTION(MOD_NAME);
