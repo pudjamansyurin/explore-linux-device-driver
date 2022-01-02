@@ -16,12 +16,12 @@
 */
 void i2c_bbang_start(struct i2c_gpio *p)
 {
-	i2c_gpio_set_sda(p, 1);
-	i2c_gpio_set_scl(p, 1);
+	i2c_gpio_write_sda(p, 1);
+	i2c_gpio_write_scl(p, 1);
 	I2C_DELAY();
-	i2c_gpio_set_sda(p, 0);
+	i2c_gpio_write_sda(p, 0);
 	I2C_DELAY();
-	i2c_gpio_set_scl(p, 0);
+	i2c_gpio_write_scl(p, 0);
 	I2C_DELAY();
 }
 
@@ -38,13 +38,13 @@ void i2c_bbang_start(struct i2c_gpio *p)
 */
 void i2c_bbang_stop(struct i2c_gpio *p)
 {
-	i2c_gpio_set_sda(p, 0);
+	i2c_gpio_write_sda(p, 0);
 	I2C_DELAY();
-	i2c_gpio_set_scl(p, 1);
+	i2c_gpio_write_scl(p, 1);
 	I2C_DELAY();
-	i2c_gpio_set_sda(p, 1);
+	i2c_gpio_write_sda(p, 1);
 	I2C_DELAY();
-	i2c_gpio_set_scl(p, 0);
+	i2c_gpio_write_scl(p, 0);
 }
 
 /*
@@ -57,10 +57,10 @@ static int i2c_bbang_read_ack(struct i2c_gpio *p)
 	int ack;
 
 	I2C_DELAY();
-	i2c_gpio_set_scl(p, 1);
+	i2c_gpio_write_scl(p, 1);
 	I2C_DELAY();
 	ack = i2c_gpio_read_sda(p) == 0; /* check ack/nack */
-	i2c_gpio_set_scl(p, 0);
+	i2c_gpio_write_scl(p, 0);
 
 	return ack ? 0 : -1;
 }
@@ -70,11 +70,11 @@ static int i2c_bbang_read_ack(struct i2c_gpio *p)
  */
 static void i2c_bbang_send_bit(struct i2c_gpio *p, bool bit)
 {
-	i2c_gpio_set_sda(p, bit);
+	i2c_gpio_write_sda(p, bit);
 	I2C_DELAY();
-	i2c_gpio_set_scl(p, 1);
+	i2c_gpio_write_scl(p, 1);
 	I2C_DELAY();
-	i2c_gpio_set_scl(p, 0);	
+	i2c_gpio_write_scl(p, 0);	
 }
 
 /*

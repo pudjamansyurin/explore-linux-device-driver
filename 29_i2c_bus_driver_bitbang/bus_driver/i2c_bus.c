@@ -10,6 +10,9 @@
 #define GPIO_SCL (4)
 #define GPIO_SDA (17)
 
+/* Private variables */
+static struct i2c_gpio alm_i2c_gpio;
+
 /**
  * alm_func - list supported functionalities for this bus driver
  *
@@ -31,21 +34,17 @@ static int alm_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 			int num)
 {
 	int ret = 0, i, j;
-	struct i2c_gpio *gpio;
 	struct i2c_msg *msg;
 
-	if ((gpio = i2c_gpio_alloc()) == NULL) 
-		return -ENOMEM;
-
-	if (i2c_gpio_init(gpio, GPIO_SCL, GPIO_SDA) < 0)
+	if (i2c_gpio_init(&alm_i2c_gpio, GPIO_SCL, GPIO_SDA) < 0)
 		return -EINVAL;
 
-	i2c_bbang_start(gpio);
+	i2c_bbang_start(&alm_i2c_gpio);
 
 	for (i = 0; i < num; i++) {
 		msg = &msgs[i];
 
-		if (i2c_bbang_send(gpio, msg->addr, msg->buf, msg->len))
+		if (i2c_bbang_send(&alm_i2c_gpio, msg->addr, msg->buf, msg->len))
 			ret++;
 
 		pr_info(MOD_INFO
@@ -57,8 +56,8 @@ static int alm_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 		pr_cont("]\n");
 	}
 
-	i2c_bbang_stop(gpio);
-	i2c_gpio_deinit(gpio);
+	i2c_bbang_stop(&alm_i2c_gpio);
+	i2c_gpio_deinit(&alm_i2c_gpio);
 
 	return 0;
 }
