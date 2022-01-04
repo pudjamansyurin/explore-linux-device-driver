@@ -8,6 +8,9 @@ struct ssd1306
   struct i2c_client *client;
   u8 npage;
   u8 nsegment;
+  u8 line_num;
+  u8 cursor_pos;
+  u8 font_size;
 };
 
 struct ssd1306 *ssd1306_new(struct i2c_client *client, u8 npage, u8 nsegment);

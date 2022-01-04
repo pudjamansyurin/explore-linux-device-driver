@@ -2,30 +2,24 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include "ssd1306.h"
+#include "ssd1306_font.h"
 
-/* i2c_write - i2c transmit wrapper 
- * 
+#define SSD1306_MAX_SEG (128) // Maximum segment
+#define SSD1306_MAX_LINE (7)  // Maximum line
+
+/* write - ssd1306 write i2c frame
+ *
  * Return: errno
  */
-static int i2c_write(struct i2c_client *client, u8 *buf, unsigned int len)
+static int write(struct i2c_client *client, bool is_cmd, u8 payload)
 {
-  int ret;
+  u8 buf[2] = {
+      is_cmd ? 0x00 : 0x01 << 6,
+      payload,
+  };
 
-  ret = i2c_master_send(client, buf, len);
-  return ret;
+  return i2c_master_send(client, buf, 2);
 }
-
-// /* i2c_read - i2c receive wrapper
-//  *
-//  * Return: errno
-//  */
-// static int i2c_read(struct i2c_client *client, u8 *buf, unsigned int len)
-// {
-//   int ret;
-
-//   ret = i2c_master_recv(client, buf, len);
-//   return ret;
-// }
 
 /* write_data - ssd1306 write data
  *
@@ -33,12 +27,7 @@ static int i2c_write(struct i2c_client *client, u8 *buf, unsigned int len)
  */
 static int write_data(struct i2c_client *client, u8 payload)
 {
-  u8 buf[2] = {
-      0x01 << 6,
-      payload,
-  };
-
-  return i2c_write(client, buf, 2);
+  return write(client, false, payload);
 }
 
 /* write_cmd - ssd1306 write command
@@ -47,12 +36,7 @@ static int write_data(struct i2c_client *client, u8 payload)
  */
 static int write_cmd(struct i2c_client *client, u8 payload)
 {
-  u8 buf[2] = {
-      0x00,
-      payload,
-  };
-
-  return i2c_write(client, buf, 2);
+  return write(client, true, payload);
 }
 
 /* ssd1306_new - allocate and initiate ssd1306 
@@ -135,3 +119,26 @@ void ssd1306_fill(struct ssd1306 *oled, u8 payload)
   for (i = 0; i < (oled->npage * oled->nsegment); i++)
     write_data(oled->client, payload);
 }
+
+// /*
+//  * ssd1306_set_cursor - set cursor position
+//  * @lineNo: line number
+//  * @cursorPos: cursor position
+//  */
+// static void ssd1306_set_cursor(uint8_t lineNo, uint8_t cursorPos)
+// {
+//   /* Move the Cursor to specified position only if it is in range */
+//   if ((lineNo > SSD1306_MAX_LINE) || (cursorPos >= SSD1306_MAX_SEG))
+//     return;
+
+//   SSD1306_LineNum = lineNo;      // Save the specified line number
+//   SSD1306_CursorPos = cursorPos; // Save the specified cursor position
+
+//   write_cmd(client, 0x21);                // cmd for the column start and end address
+//   write_cmd(client, cursorPos);           // column start addr
+//   write_cmd(client, SSD1306_MAX_SEG - 1); // column end addr
+
+//   write_cmd(client, 0x22);             // cmd for the page start and end address
+//   write_cmd(client, lineNo);           // page start addr
+//   write_cmd(client, SSD1306_MAX_LINE); // page end addr
+// }
