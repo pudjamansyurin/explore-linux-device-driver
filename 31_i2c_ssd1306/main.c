@@ -12,9 +12,6 @@
 #define I2C_SLAVE_ADDR (0x3C)
 #define I2C_SLAVE_NAME ("OLED_SSD1306")
 
-#define OLED_PAGES (8)
-#define OLED_SEGMENTS (128)
-
 /* Private types */
 struct alm_dev
 {
@@ -32,8 +29,17 @@ static struct alm_dev alm = {0};
 static int alm_oled_probe(struct i2c_client *client,
                           const struct i2c_device_id *id)
 {
-  ssd1306_init(alm.oled);
-  ssd1306_fill(alm.oled, 0xff);
+  struct ssd1306 *oled = alm.oled;
+
+  ssd1306_init(oled);
+  // ssd1306_fill(oled, 0xff);
+
+  ssd1306_set_cursor(oled, 0, 0);
+  ssd1306_scroll_h(oled, true, 0, 2);
+
+  //Write String to OLED
+  ssd1306_print_str(oled, "Hello World\n");
+  ssd1306_print_str(oled, "alman\n");
 
   pr_info(DEV_INFO "ssd1306 was probed\n");
   return 0;
@@ -45,7 +51,16 @@ static int alm_oled_probe(struct i2c_client *client,
  */
 static int alm_oled_remove(struct i2c_client *client)
 {
-  ssd1306_fill(alm.oled, 0x00);
+  struct ssd1306 *oled = alm.oled;
+
+  ssd1306_set_cursor(oled, 0, 0);
+  ssd1306_print_str(oled, "Good bye!!!");
+  msleep(1000);
+
+  ssd1306_set_cursor(oled, 0, 0);
+  ssd1306_fill(oled, 0x00);
+
+  ssd1306_display_on(oled, false);
 
   pr_info(DEV_INFO "ssd1306 was removed\n");
   return 0;
@@ -91,7 +106,7 @@ static int __init alm_init(void)
     goto r_adapter;
   }
 
-  alm.oled = ssd1306_new(alm.client, OLED_PAGES, OLED_SEGMENTS);
+  alm.oled = ssd1306_new(alm.client);
   if (alm.oled == NULL)
   {
     pr_err(DEV_INFO "Can't allocate memory for ssd1306\n");

@@ -1,5 +1,4 @@
 #include <linux/module.h>
-#include "ssd1306_font.h"
 
 /*
 ** Array Variable to store the letters.
