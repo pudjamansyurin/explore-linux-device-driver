@@ -32,13 +32,13 @@ static int alm_oled_probe(struct i2c_client *client,
   struct ssd1306 *oled = alm.oled;
 
   ssd1306_init(oled);
-  // ssd1306_fill(oled, 0xff);
+  ssd1306_clear(oled);
 
   ssd1306_set_cursor(oled, 0, 0);
   ssd1306_scroll_h(oled, true, 0, 2);
 
-  //Write String to OLED
   ssd1306_print_str(oled, "Hello World\n");
+  ssd1306_set_cursor(oled, 7, 0);
   ssd1306_print_str(oled, "alman\n");
 
   pr_info(DEV_INFO "ssd1306 was probed\n");
@@ -58,7 +58,7 @@ static int alm_oled_remove(struct i2c_client *client)
   msleep(1000);
 
   ssd1306_set_cursor(oled, 0, 0);
-  ssd1306_fill(oled, 0x00);
+  ssd1306_clear(oled);
 
   ssd1306_display_on(oled, false);
 

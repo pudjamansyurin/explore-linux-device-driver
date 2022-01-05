@@ -105,23 +105,35 @@ void ssd1306_init(struct ssd1306 *oled)
   ssd1306_display_on(oled, true);
 }
 
+/*
+ * ssd1306_display_on - set display on/off
+ * @on: on/off state
+ */
 void ssd1306_display_on(struct ssd1306 *oled, bool on)
 {
   write_cmd(oled, on ? 0xAF : 0xAE);
 }
 
-/* ssd1306_fill - fill all display with data
- * @payload : byte data to be written
+/*
+ * ssd1306_invert - inverts the display
+ * @invert: do inversion
  */
-void ssd1306_fill(struct ssd1306 *oled, u8 payload)
+void ssd1306_invert(struct ssd1306 *oled, bool invert)
 {
-  u16 i, bits;
-
-  bits = (SSD1306_MAX_LINE + 1) * SSD1306_MAX_SEG;
-
-  for (i = 0; i < bits; i++)
-    write_data(oled, payload);
+  write_cmd(oled, invert ? 0xA7 : 0xA8);
 }
+
+/*
+ * ssd1306_set_brightness - sets the brightness of  the display.
+ * @value: the intensity
+ */
+void ssd1306_set_brightness(struct ssd1306 *oled, u8 value)
+{
+  write_cmd(oled, 0x81);  // Contrast command
+  write_cmd(oled, value); // Contrast value (default value = 0x7F)
+}
+
+
 
 /*
  * ssd1306_set_cursor - set cursor position
@@ -162,6 +174,78 @@ void ssd1306_goto_newline(struct ssd1306 *oled)
     line = 0;
 
   ssd1306_set_cursor(oled, line, 0); /* Finally move it to next line */
+}
+
+/*
+ * ssd1306_scroll_h - Scrolls the data right/left in horizontally.
+ * @is_left_scroll: left horizontal scroll
+ * @start_line_no: Start address of the line to scroll 
+ * @end_line_no: End address of the line to scroll    
+ */
+void ssd1306_scroll_h(struct ssd1306 *oled,
+                      bool is_left_scroll,
+                      u8 start_line_no,
+                      u8 end_line_no)
+{
+  write_cmd(oled, is_left_scroll ? 0x27 : 0x26);
+
+  write_cmd(oled, 0x00);          // Dummy byte (dont change)
+  write_cmd(oled, start_line_no); // Start page address
+  write_cmd(oled, 0x00);          // 5 frames interval
+  write_cmd(oled, end_line_no);   // End page address
+  write_cmd(oled, 0x00);          // Dummy byte (dont change)
+  write_cmd(oled, 0xFF);          // Dummy byte (dont change)
+  write_cmd(oled, 0x2F);          // activate scroll
+}
+
+/*
+ * ssd1306_scroll_vh - Scrolls the data in vertically and right/left horizontally(Diagonally).
+ * @is_vertical_left_scroll: vertical and left horizontal scroll
+ * @start_line_no: Start address of the line to scroll 
+ * @end_line_no: End address of the line to scroll 
+ * @vertical_area: Area for vertical scroll (0-63)
+ * @rows: Number of rows to scroll vertically             
+ */
+void ssd1306_scroll_vh(struct ssd1306 *oled,
+                       bool is_vertical_left_scroll,
+                       u8 start_line_no,
+                       u8 end_line_no,
+                       u8 vertical_area,
+                       u8 rows)
+{
+  write_cmd(oled, 0xA3);          // Set Vertical Scroll Area
+  write_cmd(oled, 0x00);          // Check datasheet
+  write_cmd(oled, vertical_area); // area for vertical scroll
+
+  write_cmd(oled, is_vertical_left_scroll ? 0x2A : 0x29);
+
+  write_cmd(oled, 0x00);          // Dummy byte (dont change)
+  write_cmd(oled, start_line_no); // Start page address
+  write_cmd(oled, 0x00);          // 5 frames interval
+  write_cmd(oled, end_line_no);   // End page address
+  write_cmd(oled, rows);          // Vertical scrolling offset
+  write_cmd(oled, 0x2F);          // activate scroll
+}
+/* 
+ * ssd1306_fill - fill all display with data
+ * @payload : byte data to be written
+ */
+void ssd1306_fill(struct ssd1306 *oled, u8 payload)
+{
+  u16 i, bits;
+
+  bits = (SSD1306_MAX_LINE + 1) * SSD1306_MAX_SEG;
+
+  for (i = 0; i <= bits; i++)
+    write_data(oled, payload);
+}
+
+/*
+ * ssd1306_clear - clear all display
+ */
+void ssd1306_clear(struct ssd1306 *oled)
+{
+	ssd1306_fill(oled, 0x00);
 }
 
 /*
@@ -221,72 +305,3 @@ void ssd1306_print_str(struct ssd1306 *oled, unsigned char *str)
     ssd1306_print_char(oled, *str++);
 }
 
-/*
- * ssd1306_invert - inverts the display
- * @invert: do inversion
- */
-void ssd1306_invert(struct ssd1306 *oled, bool invert)
-{
-  write_cmd(oled, invert ? 0xA7 : 0xA8);
-}
-
-/*
- * ssd1306_set_brightness - sets the brightness of  the display.
- * @value: the intensity
- */
-void ssd1306_set_brightness(struct ssd1306 *oled, u8 value)
-{
-  write_cmd(oled, 0x81);  // Contrast command
-  write_cmd(oled, value); // Contrast value (default value = 0x7F)
-}
-
-/*
- * ssd1306_scroll_h - Scrolls the data right/left in horizontally.
- * @is_left_scroll: left horizontal scroll
- * @start_line_no: Start address of the line to scroll 
- * @end_line_no: End address of the line to scroll    
- */
-void ssd1306_scroll_h(struct ssd1306 *oled,
-                      bool is_left_scroll,
-                      u8 start_line_no,
-                      u8 end_line_no)
-{
-  write_cmd(oled, is_left_scroll ? 0x27 : 0x26);
-
-  write_cmd(oled, 0x00);          // Dummy byte (dont change)
-  write_cmd(oled, start_line_no); // Start page address
-  write_cmd(oled, 0x00);          // 5 frames interval
-  write_cmd(oled, end_line_no);   // End page address
-  write_cmd(oled, 0x00);          // Dummy byte (dont change)
-  write_cmd(oled, 0xFF);          // Dummy byte (dont change)
-  write_cmd(oled, 0x2F);          // activate scroll
-}
-
-/*
- * ssd1306_scroll_vh - Scrolls the data in vertically and right/left horizontally(Diagonally).
- * @is_vertical_left_scroll: vertical and left horizontal scroll
- * @start_line_no: Start address of the line to scroll 
- * @end_line_no: End address of the line to scroll 
- * @vertical_area: Area for vertical scroll (0-63)
- * @rows: Number of rows to scroll vertically             
- */
-void ssd1306_scroll_vh(struct ssd1306 *oled,
-                       bool is_vertical_left_scroll,
-                       u8 start_line_no,
-                       u8 end_line_no,
-                       u8 vertical_area,
-                       u8 rows)
-{
-  write_cmd(oled, 0xA3);          // Set Vertical Scroll Area
-  write_cmd(oled, 0x00);          // Check datasheet
-  write_cmd(oled, vertical_area); // area for vertical scroll
-
-  write_cmd(oled, is_vertical_left_scroll ? 0x2A : 0x29);
-
-  write_cmd(oled, 0x00);          // Dummy byte (dont change)
-  write_cmd(oled, start_line_no); // Start page address
-  write_cmd(oled, 0x00);          // 5 frames interval
-  write_cmd(oled, end_line_no);   // End page address
-  write_cmd(oled, rows);          // Vertical scrolling offset
-  write_cmd(oled, 0x2F);          // activate scroll
-}
