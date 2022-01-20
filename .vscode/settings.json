@@ -4,6 +4,7 @@
     "i2c.h": "c",
     "delay.h": "c",
     "mod_devicetable.h": "c",
-    "device.h": "c"
+    "device.h": "c",
+    "ssd1306.h": "c"
   }
 }
